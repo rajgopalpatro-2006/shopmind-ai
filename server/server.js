@@ -24,23 +24,12 @@ require("dotenv").config();
 // ROUTES
 // =====================================================
 
-const authRoutes =
-  require("./routes/authRoutes");
-
-const productRoutes =
-  require("./routes/productRoutes");
-
-const orderRoutes =
-  require("./routes/orderRoutes");
-
-const reviewRoutes =
-  require("./routes/reviewRoutes");
-
-const notificationRoutes =
-  require("./routes/notificationRoutes");
-
-const wishlistRoutes =
-  require("./routes/wishlistRoutes");
+const authRoutes = require("./routes/authRoutes");
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const wishlistRoutes = require("./routes/wishlistRoutes");
 
 // =====================================================
 // APP
@@ -48,88 +37,81 @@ const wishlistRoutes =
 
 const app = express();
 
-const PORT =
-  process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 // =====================================================
 // ALLOWED FRONTEND URLS
 // =====================================================
 
 const allowedOrigins = [
+  // Local development
   "http://localhost:5173",
+
+  // Deployed ShopMind AI frontend
+  "https://shopmind-ai-1.onrender.com",
 ];
 
-// Add deployed frontend URL from environment variable
-if (process.env.CLIENT_URL) {
-  allowedOrigins.push(
-    process.env.CLIENT_URL
-  );
+// Add CLIENT_URL from Render environment variables
+if (
+  process.env.CLIENT_URL &&
+  !allowedOrigins.includes(process.env.CLIENT_URL)
+) {
+  allowedOrigins.push(process.env.CLIENT_URL);
 }
 
-// =====================================================
-// CORS
-// =====================================================
-
-app.use(
-  cors({
-    origin: function (
-      origin,
-      callback
-    ) {
-      // Allow requests without an Origin header
-      // such as Postman, Render health checks,
-      // mobile clients, etc.
-
-      if (!origin) {
-        return callback(
-          null,
-          true
-        );
-      }
-
-      if (
-        allowedOrigins.includes(
-          origin
-        )
-      ) {
-        return callback(
-          null,
-          true
-        );
-      }
-
-      console.log(
-        "Blocked by CORS:",
-        origin
-      );
-
-      return callback(
-        new Error(
-          "Not allowed by CORS"
-        )
-      );
-    },
-
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
-
-    credentials: true,
-  })
-);
+console.log("Allowed CORS origins:", allowedOrigins);
 
 // =====================================================
-// BODY PARSER
+// CORS CONFIGURATION
+// =====================================================
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests without an Origin header.
+    // Examples:
+    // Postman
+    // Render health checks
+    // server-to-server requests
+
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.log("Blocked by CORS:", origin);
+
+    return callback(
+      new Error("Not allowed by CORS")
+    );
+  },
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+  ],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+  ],
+
+  credentials: true,
+
+  optionsSuccessStatus: 200,
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// =====================================================
+// BODY PARSERS
 // =====================================================
 
 app.use(
@@ -149,54 +131,45 @@ app.use(
 // HOME ROUTE
 // =====================================================
 
-app.get(
-  "/",
-  (req, res) => {
-    res.status(200).json({
-      success: true,
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
 
-      message:
-        "ShopMind AI backend is running 🚀",
+    message:
+      "ShopMind AI backend is running 🚀",
 
-      environment:
-        process.env.NODE_ENV ||
-        "development",
-    });
-  }
-);
+    environment:
+      process.env.NODE_ENV ||
+      "development",
+  });
+});
 
 // =====================================================
 // HEALTH CHECK
-// Useful for Render deployment
 // =====================================================
 
-app.get(
-  "/api/health",
-  (req, res) => {
-    res.status(200).json({
-      success: true,
-      status: "healthy",
-      message:
-        "ShopMind AI API is online.",
-    });
-  }
-);
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "healthy",
+
+    message:
+      "ShopMind AI API is online.",
+  });
+});
 
 // =====================================================
 // TEST ROUTE
 // =====================================================
 
-app.get(
-  "/api/test",
-  (req, res) => {
-    res.status(200).json({
-      success: true,
+app.get("/api/test", (req, res) => {
+  res.status(200).json({
+    success: true,
 
-      message:
-        "Frontend can connect to ShopMind AI API.",
-    });
-  }
-);
+    message:
+      "Frontend can connect to ShopMind AI API.",
+  });
+});
 
 // =====================================================
 // AUTHENTICATION ROUTES
@@ -207,7 +180,7 @@ app.use(
   authRoutes
 );
 
-// Examples:
+// Available routes may include:
 //
 // POST /api/auth/signup
 // POST /api/auth/login
@@ -267,16 +240,14 @@ app.use(
 // 404 ROUTE
 // =====================================================
 
-app.use(
-  (req, res) => {
-    res.status(404).json({
-      success: false,
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
 
-      message:
-        "API route not found.",
-    });
-  }
-);
+    message:
+      "API route not found.",
+  });
+});
 
 // =====================================================
 // GLOBAL ERROR HANDLER
@@ -294,7 +265,10 @@ app.use(
       error.message
     );
 
-    // CORS error
+    // -----------------------------------------------
+    // CORS ERROR
+    // -----------------------------------------------
+
     if (
       error.message ===
       "Not allowed by CORS"
@@ -309,6 +283,10 @@ app.use(
         });
     }
 
+    // -----------------------------------------------
+    // GENERAL SERVER ERROR
+    // -----------------------------------------------
+
     return res
       .status(500)
       .json({
@@ -321,76 +299,71 @@ app.use(
 );
 
 // =====================================================
-// CONNECT TO MONGODB
+// CONNECT TO MONGODB AND START SERVER
 // =====================================================
 
-const startServer =
-  async () => {
-    try {
-      // ===============================================
-      // CHECK IMPORTANT ENVIRONMENT VARIABLES
-      // ===============================================
+const startServer = async () => {
+  try {
+    // =================================================
+    // CHECK REQUIRED ENVIRONMENT VARIABLES
+    // =================================================
 
-      if (
-        !process.env.MONGO_URI
-      ) {
-        throw new Error(
-          "MONGO_URI is missing."
-        );
-      }
-
-      if (
-        !process.env.JWT_SECRET
-      ) {
-        throw new Error(
-          "JWT_SECRET is missing."
-        );
-      }
-
-      // ===============================================
-      // CONNECT TO DATABASE
-      // ===============================================
-
-      await mongoose.connect(
-        process.env.MONGO_URI
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        "MONGO_URI is missing."
       );
-
-      console.log(
-        "MongoDB connected successfully ✅"
-      );
-
-      // ===============================================
-      // START EXPRESS SERVER
-      // ===============================================
-
-      app.listen(
-        PORT,
-        "0.0.0.0",
-        () => {
-          console.log(
-            `ShopMind AI server running on port ${PORT} 🚀`
-          );
-
-          console.log(
-            `Environment: ${
-              process.env.NODE_ENV ||
-              "development"
-            }`
-          );
-        }
-      );
-    } catch (error) {
-      console.error(
-        "Server startup failed ❌"
-      );
-
-      console.error(
-        error.message
-      );
-
-      process.exit(1);
     }
-  };
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error(
+        "JWT_SECRET is missing."
+      );
+    }
+
+    // =================================================
+    // CONNECT TO MONGODB
+    // =================================================
+
+    await mongoose.connect(
+      process.env.MONGO_URI
+    );
+
+    console.log(
+      "MongoDB connected successfully ✅"
+    );
+
+    // =================================================
+    // START EXPRESS SERVER
+    // =================================================
+
+    app.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `ShopMind AI server running on port ${PORT} 🚀`
+        );
+
+        console.log(
+          `Environment: ${
+            process.env.NODE_ENV ||
+            "development"
+          }`
+        );
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Server startup failed ❌"
+    );
+
+    console.error(
+      error.message
+    );
+
+    process.exit(1);
+  }
+};
 
 // =====================================================
 // START SERVER
