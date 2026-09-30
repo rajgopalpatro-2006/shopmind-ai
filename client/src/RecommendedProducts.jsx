@@ -5,26 +5,34 @@ function RecommendedProducts({
   onViewProduct,
   onAddToCart,
 }) {
-  // ==========================================
+  // =====================================================
   // FORMAT PRICE
-  // ==========================================
+  // =====================================================
 
   const formatPrice = (price) => {
     return Number(price || 0).toLocaleString("en-IN");
   };
 
-  // ==========================================
+  // =====================================================
+  // GET PRODUCT ID
+  // =====================================================
+
+  const getProductId = (product) => {
+    return product?._id || product?.id || null;
+  };
+
+  // =====================================================
   // GET USER INTEREST CATEGORIES
-  // ==========================================
+  // =====================================================
 
   const interestCategories = [
     ...recentlyViewed.map((product) => product.category),
     ...wishlist.map((product) => product.category),
   ].filter(Boolean);
 
-  // ==========================================
+  // =====================================================
   // COUNT CATEGORY INTEREST
-  // ==========================================
+  // =====================================================
 
   const categoryScores = interestCategories.reduce(
     (scores, category) => {
@@ -35,17 +43,19 @@ function RecommendedProducts({
     {}
   );
 
-  // ==========================================
+  // =====================================================
   // IDS ALREADY VIEWED
-  // ==========================================
+  // =====================================================
 
   const viewedIds = new Set(
-    recentlyViewed.map((product) => product._id)
+    recentlyViewed
+      .map((product) => getProductId(product))
+      .filter(Boolean)
   );
 
-  // ==========================================
+  // =====================================================
   // BUILD RECOMMENDATIONS
-  // ==========================================
+  // =====================================================
 
   const recommendedProducts = [...products]
     .map((product) => {
@@ -65,7 +75,7 @@ function RecommendedProducts({
       }
 
       // Products not already viewed get preference
-      if (!viewedIds.has(product._id)) {
+      if (!viewedIds.has(getProductId(product))) {
         recommendationScore += 5;
       }
 
@@ -76,24 +86,47 @@ function RecommendedProducts({
     })
     .sort(
       (a, b) =>
-        b.recommendationScore - a.recommendationScore
+        b.recommendationScore -
+        a.recommendationScore
     )
     .slice(0, 4);
 
-  // ==========================================
+  // =====================================================
   // DON'T SHOW IF THERE ARE NO PRODUCTS
-  // ==========================================
+  // =====================================================
 
   if (recommendedProducts.length === 0) {
     return null;
   }
 
-  // ==========================================
-  // DETERMINE MESSAGE
-  // ==========================================
+  // =====================================================
+  // PERSONALIZED STATUS
+  // =====================================================
 
   const personalized =
-    recentlyViewed.length > 0 || wishlist.length > 0;
+    recentlyViewed.length > 0 ||
+    wishlist.length > 0;
+
+  // =====================================================
+  // IMAGE ERROR FALLBACK
+  // =====================================================
+
+  const handleImageError = (event) => {
+    const image = event.currentTarget;
+
+    image.style.display = "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display = "flex";
+    }
+  };
+
+  // =====================================================
+  // JSX
+  // =====================================================
 
   return (
     <section
@@ -101,11 +134,11 @@ function RecommendedProducts({
       id="recommended"
     >
       <div className="recommended-container">
-
-        {/* HEADER */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
         <div className="recommended-header">
-
           <div>
             <span className="recommended-badge">
               ✨ SMART PICKS
@@ -127,120 +160,203 @@ function RecommendedProducts({
               🧠 Personalized
             </div>
           )}
-
         </div>
 
-        {/* PRODUCT GRID */}
+        {/* =================================================
+            PRODUCT GRID
+        ================================================= */}
 
         <div className="recommended-grid">
-
           {recommendedProducts.map((product) => {
-            const stock = Number(product.stock || 0);
+            const productId =
+              getProductId(product);
 
-            const soldOut = stock <= 0;
+            const stock =
+              Number(product.stock || 0);
+
+            const soldOut =
+              stock <= 0;
+
+            const lowStock =
+              stock > 0 &&
+              stock <= 5;
 
             return (
               <article
                 className="recommended-card"
-                key={product._id}
+                key={productId}
               >
-
-                {/* PRODUCT ICON */}
+                {/* =========================================
+                    REAL PRODUCT IMAGE
+                ========================================= */}
 
                 <div className="recommended-icon">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={
+                        product.name ||
+                        "Product"
+                      }
+                      className="recommended-real-image"
+                      loading="lazy"
+                      onError={handleImageError}
+                    />
+                  ) : null}
 
-                  <span>
+                  {/* =======================================
+                      EMOJI FALLBACK
+                  ======================================= */}
+
+                  <span
+                    className="recommended-image-fallback"
+                    style={{
+                      display:
+                        product.image
+                          ? "none"
+                          : "flex",
+                    }}
+                  >
                     {product.icon || "🛍️"}
                   </span>
 
+                  {/* =======================================
+                      AI PICK BADGE
+                  ======================================= */}
+
                   <div className="recommended-ai-badge">
-                    AI Pick
+                    ✨ AI Pick
                   </div>
 
+                  {/* =======================================
+                      STOCK BADGE ON IMAGE
+                  ======================================= */}
+
+                  {soldOut && (
+                    <div className="recommended-image-stock recommended-image-out">
+                      Out of Stock
+                    </div>
+                  )}
+
+                  {lowStock && (
+                    <div className="recommended-image-stock recommended-image-low">
+                      Only {stock} left
+                    </div>
+                  )}
                 </div>
 
-                {/* PRODUCT INFORMATION */}
+                {/* =========================================
+                    PRODUCT INFORMATION
+                ========================================= */}
 
                 <div className="recommended-info">
+                  {/* CATEGORY */}
 
                   <span className="recommended-category">
-                    {product.category || "Product"}
+                    {product.category ||
+                      "Product"}
                   </span>
+
+                  {/* PRODUCT NAME */}
 
                   <h3>
                     {product.name}
                   </h3>
 
-                  {/* RATING */}
+                  {/* =======================================
+                      RATING
+                  ======================================= */}
 
                   <div className="recommended-rating">
-                    ⭐{" "}
-                    {Number(
-                      product.rating || 0
-                    ).toFixed(1)}
+                    <span>
+                      ⭐
+                    </span>
+
+                    <strong>
+                      {Number(
+                        product.rating || 0
+                      ).toFixed(1)}
+                    </strong>
                   </div>
 
-                  {/* DESCRIPTION */}
+                  {/* =======================================
+                      DESCRIPTION
+                  ======================================= */}
 
                   <p className="recommended-description">
                     {product.description ||
                       "No description available."}
                   </p>
 
-                  {/* PRICE */}
+                  {/* =======================================
+                      PRICE
+                  ======================================= */}
 
                   <div className="recommended-price">
-                    ₹{formatPrice(product.price)}
+                    ₹
+                    {formatPrice(
+                      product.price
+                    )}
                   </div>
 
-                  {/* STOCK */}
+                  {/* =======================================
+                      STOCK
+                  ======================================= */}
 
                   <div
                     className={`recommended-stock ${
                       soldOut
                         ? "recommended-out-stock"
-                        : stock <= 5
+                        : lowStock
                           ? "recommended-low-stock"
                           : "recommended-in-stock"
                     }`}
                   >
                     {soldOut
                       ? "🔴 Out of Stock"
-                      : stock <= 5
+                      : lowStock
                         ? `🟠 Only ${stock} Left`
                         : `🟢 In Stock (${stock})`}
                   </div>
 
-                  {/* WHY RECOMMENDED */}
+                  {/* =======================================
+                      WHY RECOMMENDED
+                  ======================================= */}
 
                   <div className="why-recommended">
-
                     <span>
                       💡
                     </span>
 
                     <p>
-                      {categoryScores[product.category]
+                      {categoryScores[
+                        product.category
+                      ]
                         ? `Recommended because you're interested in ${product.category} products.`
-                        : Number(product.rating || 0) >= 4
+                        : Number(
+                              product.rating ||
+                                0
+                            ) >= 4
                           ? "Recommended because customers rate this product highly."
                           : "Recommended based on available products in ShopMind AI."}
                     </p>
-
                   </div>
 
-                  {/* BUTTONS */}
+                  {/* =======================================
+                      BUTTONS
+                  ======================================= */}
 
                   <div className="recommended-actions">
-
                     <button
                       type="button"
                       className="recommended-view-btn"
                       onClick={() =>
-                        onViewProduct?.(product)
+                        onViewProduct?.(
+                          product
+                        )
                       }
                     >
-                      View Details
+                      👁️ View Details
                     </button>
 
                     <button
@@ -248,24 +364,21 @@ function RecommendedProducts({
                       className="recommended-cart-btn"
                       disabled={soldOut}
                       onClick={() =>
-                        onAddToCart?.(product)
+                        onAddToCart?.(
+                          product
+                        )
                       }
                     >
                       {soldOut
                         ? "Out of Stock"
                         : "🛒 Add to Cart"}
                     </button>
-
                   </div>
-
                 </div>
-
               </article>
             );
           })}
-
         </div>
-
       </div>
     </section>
   );

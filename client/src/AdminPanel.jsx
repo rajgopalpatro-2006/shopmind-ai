@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import API_URL from "./api";
+import "./AdminPanel.css";
 
 function AdminPanel({
   onClose,
@@ -7,32 +9,90 @@ function AdminPanel({
   onProductUpdated,
   onProductDeleted,
 }) {
-  const [products, setProducts] = useState([]);
+  // =====================================================
+  // INITIAL FORM
+  // =====================================================
 
-  const [form, setForm] = useState({
+  const initialForm = {
     name: "",
     category: "Laptop",
     price: "",
+    image: "",
     icon: "💻",
     rating: "",
     stock: "10",
     description: "",
-  });
+  };
+
+  // =====================================================
+  // STATES
+  // =====================================================
+
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] =
+    useState(true);
+
+  const [form, setForm] = useState(initialForm);
 
   const [editingId, setEditingId] = useState(null);
 
   const [loading, setLoading] = useState(false);
 
-  const [productsLoading, setProductsLoading] =
-    useState(true);
-
   const [message, setMessage] = useState("");
-
   const [error, setError] = useState("");
 
-  // ==========================================
+  const [search, setSearch] = useState("");
+
+  const [categoryFilter, setCategoryFilter] =
+    useState("All");
+
+  // =====================================================
+  // CATEGORIES
+  // =====================================================
+
+  const categories = [
+    "Laptop",
+    "Smartphone",
+    "Headphones",
+    "Smartwatch",
+  ];
+
+  // =====================================================
+  // CATEGORY ICONS
+  // =====================================================
+
+  const categoryIcons = {
+    Laptop: "💻",
+    Smartphone: "📱",
+    Headphones: "🎧",
+    Smartwatch: "⌚",
+  };
+
+  // =====================================================
+  // GET PRODUCT ID
+  // =====================================================
+
+  const getProductId = (product) => {
+    return product?._id || product?.id || null;
+  };
+
+  // =====================================================
+  // GET PRODUCT STOCK
+  // =====================================================
+
+  const getProductStock = (product) => {
+    const stock = Number(product?.stock ?? 0);
+
+    if (!Number.isFinite(stock)) {
+      return 0;
+    }
+
+    return stock;
+  };
+
+  // =====================================================
   // LOAD PRODUCTS
-  // ==========================================
+  // =====================================================
 
   const loadProducts = async () => {
     try {
@@ -47,12 +107,15 @@ function AdminPanel({
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Could not load products."
+          data.message || "Could not load products."
         );
       }
 
-      setProducts(data.products || []);
+      setProducts(
+        Array.isArray(data.products)
+          ? data.products
+          : []
+      );
     } catch (err) {
       console.error(
         "Admin product loading error:",
@@ -60,23 +123,124 @@ function AdminPanel({
       );
 
       setError(
-        "Could not load products. Make sure the backend is running."
+        err.message ||
+          "Could not load products. Make sure the backend is running."
       );
     } finally {
       setProductsLoading(false);
     }
   };
 
+  // =====================================================
+  // LOAD ON OPEN
+  // =====================================================
+
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // ==========================================
-  // HANDLE FORM CHANGE
-  // ==========================================
+  // =====================================================
+  // STOCK INFO
+  // =====================================================
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const getStockInfo = (product) => {
+    const stock = getProductStock(product);
+
+    if (stock <= 0) {
+      return {
+        label: "Out of Stock",
+        className: "stock-out",
+      };
+    }
+
+    if (stock <= 5) {
+      return {
+        label: `Low Stock (${stock})`,
+        className: "stock-low",
+      };
+    }
+
+    return {
+      label: `In Stock (${stock})`,
+      className: "stock-good",
+    };
+  };
+
+  // =====================================================
+  // INVENTORY STATISTICS
+  // =====================================================
+
+  const inventoryStats = useMemo(() => {
+    const total = products.length;
+
+    const inStock = products.filter((product) => {
+      return getProductStock(product) > 5;
+    }).length;
+
+    const lowStock = products.filter((product) => {
+      const stock = getProductStock(product);
+
+      return stock > 0 && stock <= 5;
+    }).length;
+
+    const outOfStock = products.filter((product) => {
+      return getProductStock(product) <= 0;
+    }).length;
+
+    return {
+      total,
+      inStock,
+      lowStock,
+      outOfStock,
+    };
+  }, [products]);
+
+  // =====================================================
+  // FILTER PRODUCTS
+  // =====================================================
+
+  const filteredProducts = useMemo(() => {
+    let result = [...products];
+
+    if (categoryFilter !== "All") {
+      result = result.filter((product) => {
+        return product.category === categoryFilter;
+      });
+    }
+
+    const text = search.trim().toLowerCase();
+
+    if (text) {
+      result = result.filter((product) => {
+        const name = String(
+          product.name || ""
+        ).toLowerCase();
+
+        const category = String(
+          product.category || ""
+        ).toLowerCase();
+
+        const description = String(
+          product.description || ""
+        ).toLowerCase();
+
+        return (
+          name.includes(text) ||
+          category.includes(text) ||
+          description.includes(text)
+        );
+      });
+    }
+
+    return result;
+  }, [products, search, categoryFilter]);
+
+  // =====================================================
+  // NORMAL FORM CHANGE
+  // =====================================================
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
     setForm((current) => ({
       ...current,
@@ -87,15 +251,33 @@ function AdminPanel({
     setError("");
   };
 
-  // ==========================================
+  // =====================================================
+  // CATEGORY CHANGE
+  // =====================================================
+
+  const handleCategoryChange = (event) => {
+    const category = event.target.value;
+
+    setForm((current) => ({
+      ...current,
+      category,
+      icon: categoryIcons[category] || "📦",
+    }));
+
+    setMessage("");
+    setError("");
+  };
+
+  // =====================================================
   // RESET FORM
-  // ==========================================
+  // =====================================================
 
   const resetForm = () => {
     setForm({
       name: "",
       category: "Laptop",
       price: "",
+      image: "",
       icon: "💻",
       rating: "",
       stock: "10",
@@ -105,123 +287,82 @@ function AdminPanel({
     setEditingId(null);
   };
 
-  // ==========================================
-  // CATEGORY ICON
-  // ==========================================
+  // =====================================================
+  // VALIDATE FORM
+  // =====================================================
 
-  const handleCategoryChange = (e) => {
-    const category = e.target.value;
-
-    let icon = "💻";
-
-    if (category === "Smartphone") {
-      icon = "📱";
-    }
-
-    if (category === "Headphones") {
-      icon = "🎧";
-    }
-
-    if (category === "Smartwatch") {
-      icon = "⌚";
-    }
-
-    setForm((current) => ({
-      ...current,
-      category,
-      icon,
-    }));
-
-    setMessage("");
-    setError("");
-  };
-
-  // ==========================================
-  // ADD / UPDATE PRODUCT
-  // ==========================================
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    setMessage("");
-    setError("");
-
-    // ==========================================
-    // NAME VALIDATION
-    // ==========================================
-
+  const validateForm = () => {
     if (!form.name.trim()) {
-      setError(
-        "Please enter a product name."
-      );
-
-      return;
+      return "Please enter a product name.";
     }
 
-    // ==========================================
-    // PRICE VALIDATION
-    // ==========================================
+    const price = Number(form.price);
 
     if (
-      !form.price ||
-      Number(form.price) <= 0
+      form.price === "" ||
+      !Number.isFinite(price) ||
+      price <= 0
     ) {
-      setError(
-        "Please enter a valid price."
-      );
-
-      return;
+      return "Please enter a valid price.";
     }
 
-    // ==========================================
-    // RATING VALIDATION
-    // ==========================================
+    const rating = Number(form.rating);
 
     if (
       form.rating === "" ||
-      Number(form.rating) < 0 ||
-      Number(form.rating) > 5
+      !Number.isFinite(rating) ||
+      rating < 0 ||
+      rating > 5
     ) {
-      setError(
-        "Rating must be between 0 and 5."
-      );
-
-      return;
+      return "Rating must be between 0 and 5.";
     }
 
-    // ==========================================
-    // STOCK VALIDATION
-    // ==========================================
-
-    const stockNumber =
-      Number(form.stock);
+    const stock = Number(form.stock);
 
     if (
       form.stock === "" ||
-      !Number.isInteger(stockNumber) ||
-      stockNumber < 0
+      !Number.isInteger(stock) ||
+      stock < 0
     ) {
-      setError(
-        "Stock must be a whole number of 0 or more."
-      );
-
-      return;
+      return "Stock must be a whole number of 0 or more.";
     }
 
-    // ==========================================
-    // DESCRIPTION VALIDATION
-    // ==========================================
-
     if (!form.description.trim()) {
-      setError(
-        "Please enter a product description."
-      );
+      return "Please enter a product description.";
+    }
 
+    return null;
+  };
+
+  // =====================================================
+  // ADD / UPDATE PRODUCT
+  // =====================================================
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setMessage("");
+    setError("");
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
       setLoading(true);
+
+      const token =
+        localStorage.getItem("shopmindToken") ||
+        localStorage.getItem("shopmind_token");
+
+      if (!token) {
+        throw new Error(
+          "Admin login required."
+        );
+      }
 
       const url = editingId
         ? `${API_URL}/api/products/${editingId}`
@@ -231,58 +372,50 @@ function AdminPanel({
         ? "PUT"
         : "POST";
 
-      const token =
-        localStorage.getItem(
-          "shopmindToken"
-        );
+      const productData = {
+        name: form.name.trim(),
 
-      if (!token) {
-        throw new Error(
-          "Admin login required."
-        );
-      }
+        category: form.category,
+
+        price: Number(form.price),
+
+        image: form.image.trim(),
+
+        icon:
+          form.icon ||
+          categoryIcons[form.category] ||
+          "📦",
+
+        rating: Number(form.rating),
+
+        stock: Number(form.stock),
+
+        description: form.description.trim(),
+      };
 
       const response = await fetch(url, {
         method,
 
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
 
-          Authorization:
-            `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
 
-        body: JSON.stringify({
-          name: form.name.trim(),
-
-          category:
-            form.category,
-
-          price:
-            Number(form.price),
-
-          icon:
-            form.icon || "📦",
-
-          rating:
-            Number(form.rating),
-
-          stock:
-            stockNumber,
-
-          description:
-            form.description.trim(),
-        }),
+        body: JSON.stringify(productData),
       });
 
-      const data =
-        await response.json();
+      let data;
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Invalid response received from server."
+        );
+      }
+
+      if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
             (editingId
@@ -291,53 +424,48 @@ function AdminPanel({
         );
       }
 
-      // ==========================================
-      // UPDATE EXISTING PRODUCT
-      // ==========================================
+      // ================================================
+      // UPDATE PRODUCT
+      // ================================================
 
       if (editingId) {
-        setProducts(
-          (currentProducts) =>
-            currentProducts.map(
-              (product) =>
-                product._id ===
-                editingId
-                  ? data.product
-                  : product
-            )
+        setProducts((currentProducts) =>
+          currentProducts.map((product) => {
+            return getProductId(product) === editingId
+              ? data.product
+              : product;
+          })
         );
 
-        if (onProductUpdated) {
-          onProductUpdated(
-            data.product
-          );
+        if (
+          typeof onProductUpdated === "function"
+        ) {
+          onProductUpdated(data.product);
         }
 
         setMessage(
-          "✅ Product updated successfully!"
+          "Product updated successfully."
         );
       }
 
-      // ==========================================
-      // ADD NEW PRODUCT
-      // ==========================================
+      // ================================================
+      // ADD PRODUCT
+      // ================================================
 
       else {
-        setProducts(
-          (currentProducts) => [
-            data.product,
-            ...currentProducts,
-          ]
-        );
+        setProducts((currentProducts) => [
+          data.product,
+          ...currentProducts,
+        ]);
 
-        if (onProductAdded) {
-          onProductAdded(
-            data.product
-          );
+        if (
+          typeof onProductAdded === "function"
+        ) {
+          onProductAdded(data.product);
         }
 
         setMessage(
-          "✅ Product added successfully!"
+          "Product added successfully."
         );
       }
 
@@ -350,95 +478,133 @@ function AdminPanel({
 
       setError(
         err.message ||
-          "Something went wrong."
+          "Something went wrong while saving the product."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // ==========================================
+  // =====================================================
   // EDIT PRODUCT
-  // ==========================================
+  // =====================================================
 
   const handleEdit = (product) => {
-    setEditingId(
-      product._id
-    );
+    const productId = getProductId(product);
+
+    if (!productId) {
+      setError(
+        "Could not find this product."
+      );
+
+      return;
+    }
+
+    // ================================================
+    // SET EDIT MODE
+    // ================================================
+
+    setEditingId(productId);
+
+    // ================================================
+    // LOAD PRODUCT INTO FORM
+    // ================================================
 
     setForm({
-      name:
-        product.name || "",
+      name: product.name || "",
 
       category:
-        product.category ||
-        "Laptop",
+        product.category || "Laptop",
 
       price:
         product.price ?? "",
 
+      image:
+        product.image || "",
+
       icon:
-        product.icon || "💻",
+        product.icon ||
+        categoryIcons[product.category] ||
+        "📦",
 
       rating:
-        product.rating ?? "",
+        product.rating ?? 0,
 
-      /*
-        Existing products created before
-        inventory support may not contain
-        stock yet.
-
-        Give those products 10 by default.
-      */
-
-      stock:
-        product.stock ??
-        10,
+      stock: Math.max(
+        0,
+        getProductStock(product)
+      ),
 
       description:
-        product.description ||
-        "",
+        product.description || "",
     });
 
     setMessage("");
     setError("");
 
-    const panel =
-      document.querySelector(
-        ".admin-panel"
-      );
+    // ================================================
+    // MOVE TO EDIT FORM
+    // ================================================
 
-    if (panel) {
-      panel.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }
+    setTimeout(() => {
+      const formPanel =
+        document.querySelector(
+          ".ap-form-panel"
+        );
+
+      if (formPanel) {
+        formPanel.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+
+        formPanel.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+
+      // Focus product name
+      const nameInput =
+        document.querySelector(
+          '.ap-form input[name="name"]'
+        );
+
+      if (nameInput) {
+        nameInput.focus();
+      }
+    }, 100);
   };
 
-  // ==========================================
+  // =====================================================
   // CANCEL EDIT
-  // ==========================================
+  // =====================================================
 
   const handleCancelEdit = () => {
     resetForm();
 
     setMessage("");
-
     setError("");
   };
 
-  // ==========================================
+  // =====================================================
   // DELETE PRODUCT
-  // ==========================================
+  // =====================================================
 
-  const handleDelete = async (
-    product
-  ) => {
-    const confirmed =
-      window.confirm(
-        `Delete "${product.name}"?`
+  const handleDelete = async (product) => {
+    const productId = getProductId(product);
+
+    if (!productId) {
+      setError(
+        "Could not find this product."
       );
+
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${product.name}"?`
+    );
 
     if (!confirmed) {
       return;
@@ -449,9 +615,8 @@ function AdminPanel({
       setError("");
 
       const token =
-        localStorage.getItem(
-          "shopmindToken"
-        );
+        localStorage.getItem("shopmindToken") ||
+        localStorage.getItem("shopmind_token");
 
       if (!token) {
         throw new Error(
@@ -460,54 +625,53 @@ function AdminPanel({
       }
 
       const response = await fetch(
-        `${API_URL}/api/products/${product._id}`,
+        `${API_URL}/api/products/${productId}`,
         {
           method: "DELETE",
 
           headers: {
-            Authorization:
-              `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      const data =
-        await response.json();
+      let data;
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Invalid response received from server."
+        );
+      }
+
+      if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
             "Could not delete product."
         );
       }
 
-      setProducts(
-        (currentProducts) =>
-          currentProducts.filter(
-            (item) =>
-              item._id !==
-              product._id
-          )
+      setProducts((currentProducts) =>
+        currentProducts.filter((item) => {
+          return (
+            getProductId(item) !== productId
+          );
+        })
       );
 
-      if (onProductDeleted) {
-        onProductDeleted(
-          product._id
-        );
+      if (
+        typeof onProductDeleted === "function"
+      ) {
+        onProductDeleted(productId);
       }
 
-      if (
-        editingId ===
-        product._id
-      ) {
+      if (editingId === productId) {
         resetForm();
       }
 
       setMessage(
-        "✅ Product deleted successfully!"
+        "Product deleted successfully."
       );
     } catch (err) {
       console.error(
@@ -522,681 +686,772 @@ function AdminPanel({
     }
   };
 
-  // ==========================================
-  // STOCK HELPERS
-  // ==========================================
+  // =====================================================
+  // PRODUCT IMAGE ERROR
+  // =====================================================
 
-  const getProductStock = (
-    product
-  ) => {
-    /*
-      Old MongoDB products may not have
-      stock yet. Display 10 until edited.
-    */
+  const handleImageError = (event) => {
+    const image = event.currentTarget;
 
-    return product.stock ?? 10;
+    image.style.display = "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display = "flex";
+    }
   };
 
-  const getStockInfo = (
-    product
-  ) => {
-    const stock =
-      getProductStock(product);
+  // =====================================================
+  // IMAGE PREVIEW ERROR
+  // =====================================================
 
-    if (stock === 0) {
-      return {
-        label:
-          "Out of Stock",
+  const handlePreviewError = (event) => {
+    event.currentTarget.style.display =
+      "none";
 
-        background:
-          "#fee2e2",
+    const fallback =
+      event.currentTarget.nextElementSibling;
 
-        color:
-          "#dc2626",
-      };
+    if (fallback) {
+      fallback.style.display = "flex";
     }
-
-    if (stock <= 5) {
-      return {
-        label:
-          `Low Stock (${stock})`,
-
-        background:
-          "#fef3c7",
-
-        color:
-          "#b45309",
-      };
-    }
-
-    return {
-      label:
-        `In Stock (${stock})`,
-
-      background:
-        "#dcfce7",
-
-      color:
-        "#15803d",
-    };
   };
 
-  // ==========================================
+  // =====================================================
+  // FORMAT PRICE
+  // =====================================================
+
+  const formatPrice = (price) => {
+    return Number(
+      price || 0
+    ).toLocaleString("en-IN");
+  };
+
+  // =====================================================
   // JSX
-  // ==========================================
+  // =====================================================
 
   return (
     <div
-      className="modal-overlay"
+      className="admin-products-overlay"
       onClick={onClose}
     >
       <div
-        className="admin-panel"
-        onClick={(e) =>
-          e.stopPropagation()
+        className="admin-products-modal"
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {/* ===============================
-            CLOSE BUTTON
-        =============================== */}
-
-        <button
-          type="button"
-          className="close-btn"
-          onClick={onClose}
-        >
-          ✕
-        </button>
-
-        {/* ===============================
+        {/* =================================================
             HEADER
-        =============================== */}
+        ================================================= */}
 
-        <div
-          style={{
-            marginBottom:
-              "25px",
-          }}
-        >
-          <h2>
-            ⚙️ Admin Dashboard
-          </h2>
+        <header className="ap-header">
+          <div className="ap-header-main">
+            <div className="ap-header-icon">
+              📦
+            </div>
 
-          <p>
-            Add, edit, delete
-            and manage ShopMind
-            AI product inventory.
-          </p>
-        </div>
+            <div>
+              <h2>
+                Manage Products
+              </h2>
 
-        {/* ===============================
+              <p>
+                Add new products, update
+                inventory and manage your
+                ShopMind catalog
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="ap-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </header>
+
+        {/* =================================================
+            STATISTICS
+        ================================================= */}
+
+        <section className="ap-stats">
+          <div className="ap-stat-card ap-stat-total">
+            <div className="ap-stat-icon">
+              📦
+            </div>
+
+            <div>
+              <strong>
+                {inventoryStats.total}
+              </strong>
+
+              <span>
+                Total Products
+              </span>
+            </div>
+          </div>
+
+          <div className="ap-stat-card ap-stat-good">
+            <div className="ap-stat-icon">
+              ✓
+            </div>
+
+            <div>
+              <strong>
+                {inventoryStats.inStock}
+              </strong>
+
+              <span>
+                In Stock
+              </span>
+            </div>
+          </div>
+
+          <div className="ap-stat-card ap-stat-low">
+            <div className="ap-stat-icon">
+              ⚠
+            </div>
+
+            <div>
+              <strong>
+                {inventoryStats.lowStock}
+              </strong>
+
+              <span>
+                Low Stock
+              </span>
+            </div>
+          </div>
+
+          <div className="ap-stat-card ap-stat-out">
+            <div className="ap-stat-icon">
+              !
+            </div>
+
+            <div>
+              <strong>
+                {inventoryStats.outOfStock}
+              </strong>
+
+              <span>
+                Out of Stock
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* =================================================
             SUCCESS MESSAGE
-        =============================== */}
+        ================================================= */}
 
         {message && (
-          <div
-            style={{
-              background:
-                "#f0fdf4",
+          <div className="ap-message ap-success">
+            <span>✓</span>
 
-              color:
-                "#15803d",
-
-              padding:
-                "12px",
-
-              borderRadius:
-                "10px",
-
-              marginBottom:
-                "20px",
-
-              fontWeight:
-                "600",
-            }}
-          >
             {message}
           </div>
         )}
 
-        {/* ===============================
+        {/* =================================================
             ERROR MESSAGE
-        =============================== */}
+        ================================================= */}
 
         {error && (
-          <div
-            style={{
-              background:
-                "#fef2f2",
+          <div className="ap-message ap-error">
+            <span>!</span>
 
-              color:
-                "#dc2626",
-
-              padding:
-                "12px",
-
-              borderRadius:
-                "10px",
-
-              marginBottom:
-                "20px",
-
-              fontWeight:
-                "600",
-            }}
-          >
             {error}
           </div>
         )}
 
-        {/* ===============================
-            PRODUCT FORM
-        =============================== */}
+        {/* =================================================
+            MAIN LAYOUT
+        ================================================= */}
 
-        <form
-          className="admin-form"
-          onSubmit={
-            handleSubmit
-          }
-        >
-          {/* PRODUCT NAME */}
+        <div className="ap-layout">
+          {/* ===============================================
+              LEFT SIDE
+          =============================================== */}
 
-          <label>
-            Product Name
+          <aside className="ap-form-panel">
+            <div className="ap-section-heading">
+              <div className="ap-section-icon">
+                {editingId ? "✏️" : "＋"}
+              </div>
 
-            <input
-              type="text"
-              name="name"
-              value={
-                form.name
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="Example: Dell XPS 15"
-              required
-            />
-          </label>
+              <div>
+                <h3>
+                  {editingId
+                    ? "Edit Product"
+                    : "Add New Product"}
+                </h3>
 
-          {/* CATEGORY */}
+                <p>
+                  {editingId
+                    ? "Update the selected product details"
+                    : "Enter product details below"}
+                </p>
+              </div>
+            </div>
 
-          <label>
-            Category
+            {/* =============================================
+                EDIT MODE NOTICE
+            ============================================= */}
 
-            <select
-              name="category"
-              value={
-                form.category
-              }
-              onChange={
-                handleCategoryChange
-              }
+            {editingId && (
+              <div className="ap-edit-notice">
+                <span>✏️</span>
+
+                <div>
+                  <strong>
+                    Editing Product
+                  </strong>
+
+                  <p>
+                    Make your changes and
+                    click Update Product.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* =============================================
+                PRODUCT FORM
+            ============================================= */}
+
+            <form
+              className="ap-form"
+              onSubmit={handleSubmit}
             >
-              <option value="Laptop">
-                Laptop
-              </option>
+              {/* PRODUCT NAME */}
 
-              <option value="Smartphone">
-                Smartphone
-              </option>
+              <label className="ap-field ap-full">
+                <span>
+                  Product Name
+                </span>
 
-              <option value="Headphones">
-                Headphones
-              </option>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="e.g. iPhone 16 Pro"
+                  required
+                />
+              </label>
 
-              <option value="Smartwatch">
-                Smartwatch
-              </option>
-            </select>
-          </label>
+              {/* CATEGORY */}
 
-          {/* PRICE */}
+              <label className="ap-field">
+                <span>
+                  Category
+                </span>
 
-          <label>
-            Price
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={
+                    handleCategoryChange
+                  }
+                >
+                  {categories.map(
+                    (category) => (
+                      <option
+                        key={category}
+                        value={category}
+                      >
+                        {category}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
 
-            <input
-              type="number"
-              name="price"
-              value={
-                form.price
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="79999"
-              min="1"
-              required
-            />
-          </label>
+              {/* FALLBACK ICON */}
 
-          {/* PRODUCT ICON */}
+              <label className="ap-field">
+                <span>
+                  Fallback Icon
+                </span>
 
-          <label>
-            Product Icon
+                <input
+                  type="text"
+                  name="icon"
+                  value={form.icon}
+                  onChange={handleChange}
+                  placeholder="📱"
+                />
+              </label>
 
-            <input
-              type="text"
-              name="icon"
-              value={
-                form.icon
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="💻"
-            />
-          </label>
+              {/* PRICE */}
 
-          {/* RATING */}
+              <label className="ap-field">
+                <span>
+                  Price (₹)
+                </span>
 
-          <label>
-            Rating
+                <input
+                  type="number"
+                  name="price"
+                  value={form.price}
+                  onChange={handleChange}
+                  placeholder="79999"
+                  min="1"
+                  required
+                />
+              </label>
 
-            <input
-              type="number"
-              name="rating"
-              value={
-                form.rating
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="4.5"
-              min="0"
-              max="5"
-              step="0.1"
-              required
-            />
-          </label>
+              {/* RATING */}
 
-          {/* STOCK */}
+              <label className="ap-field">
+                <span>
+                  Rating
+                </span>
 
-          <label>
-            Stock Quantity
+                <input
+                  type="number"
+                  name="rating"
+                  value={form.rating}
+                  onChange={handleChange}
+                  placeholder="4.5"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  required
+                />
+              </label>
 
-            <input
-              type="number"
-              name="stock"
-              value={
-                form.stock
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="10"
-              min="0"
-              step="1"
-              required
-            />
+              {/* ===========================================
+                  PRODUCT IMAGE URL
+              =========================================== */}
 
-            <small
-              style={{
-                display:
-                  "block",
+              <label className="ap-field ap-full">
+                <span>
+                  Product Image URL
+                </span>
 
-                marginTop:
-                  "6px",
+                <input
+                  type="url"
+                  name="image"
+                  value={form.image}
+                  onChange={handleChange}
+                  placeholder="https://example.com/product-image.jpg"
+                />
 
-                color:
-                  "#64748b",
+                <small>
+                  Paste a direct image URL.
+                  Leave it blank to use the
+                  product emoji.
+                </small>
+              </label>
 
-                fontSize:
-                  "12px",
-              }}
-            >
-              Enter 0 to mark
-              this product as
-              out of stock.
-            </small>
-          </label>
+              {/* ===========================================
+                  IMAGE PREVIEW
+              =========================================== */}
 
-          {/* DESCRIPTION */}
+              {form.image.trim() && (
+                <div className="ap-image-preview ap-full">
+                  <span className="ap-image-preview-title">
+                    Product Image Preview
+                  </span>
 
-          <label>
-            Description
-
-            <textarea
-              name="description"
-              value={
-                form.description
-              }
-              onChange={
-                handleChange
-              }
-              placeholder="Enter product description..."
-              rows="4"
-              required
-            />
-          </label>
-
-          {/* SUBMIT */}
-
-          <button
-            type="submit"
-            className="admin-submit-btn"
-            disabled={
-              loading
-            }
-          >
-            {loading
-              ? "Saving..."
-              : editingId
-              ? "💾 Update Product"
-              : "＋ Add Product"}
-          </button>
-
-          {/* CANCEL EDIT */}
-
-          {editingId && (
-            <button
-              type="button"
-              onClick={
-                handleCancelEdit
-              }
-              style={{
-                width:
-                  "100%",
-
-                marginTop:
-                  "10px",
-
-                padding:
-                  "12px",
-
-                borderRadius:
-                  "10px",
-
-                border:
-                  "1px solid #ddd",
-
-                background:
-                  "white",
-
-                cursor:
-                  "pointer",
-
-                fontWeight:
-                  "600",
-              }}
-            >
-              Cancel Edit
-            </button>
-          )}
-        </form>
-
-        {/* ===============================
-            PRODUCT MANAGEMENT
-        =============================== */}
-
-        <div
-          style={{
-            marginTop:
-              "35px",
-          }}
-        >
-          <h2>
-            📦 Manage Products
-          </h2>
-
-          <p
-            style={{
-              color:
-                "#64748b",
-
-              marginTop:
-                "5px",
-            }}
-          >
-            Manage product
-            details, prices and
-            available inventory.
-          </p>
-
-          {productsLoading ? (
-            <p>
-              Loading products...
-            </p>
-          ) : products.length ===
-            0 ? (
-            <p>
-              No products found.
-            </p>
-          ) : (
-            <div
-              style={{
-                display:
-                  "flex",
-
-                flexDirection:
-                  "column",
-
-                gap:
-                  "12px",
-
-                marginTop:
-                  "20px",
-              }}
-            >
-              {products.map(
-                (product) => {
-                  const stock =
-                    getProductStock(
-                      product
-                    );
-
-                  const stockInfo =
-                    getStockInfo(
-                      product
-                    );
-
-                  return (
-                    <div
-                      key={
-                        product._id
+                  <div className="ap-image-preview-box">
+                    <img
+                      key={form.image}
+                      src={form.image}
+                      alt={
+                        form.name ||
+                        "Product preview"
                       }
+                      onError={
+                        handlePreviewError
+                      }
+                    />
+
+                    <div
+                      className="ap-preview-fallback"
                       style={{
-                        border:
-                          "1px solid #e5e7eb",
-
-                        borderRadius:
-                          "12px",
-
-                        padding:
-                          "15px",
-
-                        display:
-                          "flex",
-
-                        justifyContent:
-                          "space-between",
-
-                        alignItems:
-                          "center",
-
-                        gap:
-                          "15px",
+                        display: "none",
                       }}
                     >
-                      {/* PRODUCT INFORMATION */}
+                      <span>
+                        {form.icon ||
+                          "📦"}
+                      </span>
 
-                      <div>
-                        <div
-                          style={{
-                            fontSize:
-                              "28px",
-                          }}
-                        >
-                          {product.icon ||
-                            "📦"}
-                        </div>
-
-                        <strong>
-                          {
-                            product.name
-                          }
-                        </strong>
-
-                        <div
-                          style={{
-                            marginTop:
-                              "5px",
-
-                            color:
-                              "#6b7280",
-                          }}
-                        >
-                          {
-                            product.category
-                          }{" "}
-                          • ⭐{" "}
-                          {product.rating ||
-                            0}
-                        </div>
-
-                        {/* PRICE */}
-
-                        <div
-                          style={{
-                            marginTop:
-                              "5px",
-
-                            fontWeight:
-                              "700",
-                          }}
-                        >
-                          ₹
-                          {Number(
-                            product.price ||
-                              0
-                          ).toLocaleString(
-                            "en-IN"
-                          )}
-                        </div>
-
-                        {/* STOCK BADGE */}
-
-                        <div
-                          style={{
-                            marginTop:
-                              "9px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display:
-                                "inline-block",
-
-                              padding:
-                                "6px 10px",
-
-                              borderRadius:
-                                "999px",
-
-                              background:
-                                stockInfo.background,
-
-                              color:
-                                stockInfo.color,
-
-                              fontSize:
-                                "12px",
-
-                              fontWeight:
-                                "700",
-                            }}
-                          >
-                            📦{" "}
-                            {
-                              stockInfo.label
-                            }
-                          </span>
-                        </div>
-
-                        {/* EXACT INVENTORY */}
-
-                        <div
-                          style={{
-                            marginTop:
-                              "6px",
-
-                            color:
-                              "#64748b",
-
-                            fontSize:
-                              "12px",
-                          }}
-                        >
-                          Inventory:{" "}
-                          <strong>
-                            {stock}
-                          </strong>{" "}
-                          unit
-                          {stock === 1
-                            ? ""
-                            : "s"}
-                        </div>
-                      </div>
-
-                      {/* ACTION BUTTONS */}
-
-                      <div
-                        style={{
-                          display:
-                            "flex",
-
-                          gap:
-                            "8px",
-
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(
-                              product
-                            )
-                          }
-                          style={{
-                            padding:
-                              "8px 12px",
-
-                            cursor:
-                              "pointer",
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDelete(
-                              product
-                            )
-                          }
-                          style={{
-                            padding:
-                              "8px 12px",
-
-                            cursor:
-                              "pointer",
-
-                            color:
-                              "#dc2626",
-                          }}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
+                      <small>
+                        Image could not
+                        be loaded
+                      </small>
                     </div>
-                  );
-                }
+                  </div>
+                </div>
               )}
+
+              {/* STOCK */}
+
+              <label className="ap-field ap-full">
+                <span>
+                  Stock Quantity
+                </span>
+
+                <input
+                  type="number"
+                  name="stock"
+                  value={form.stock}
+                  onChange={handleChange}
+                  placeholder="10"
+                  min="0"
+                  step="1"
+                  required
+                />
+
+                <small>
+                  Enter 0 to mark the
+                  product as out of stock.
+                </small>
+              </label>
+
+              {/* DESCRIPTION */}
+
+              <label className="ap-field ap-full">
+                <span>
+                  Description
+                </span>
+
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Enter product description..."
+                  rows="4"
+                  required
+                />
+              </label>
+
+              {/* ADD / UPDATE */}
+
+              <button
+                type="submit"
+                className="ap-submit"
+                disabled={loading}
+              >
+                {loading
+                  ? editingId
+                    ? "Updating Product..."
+                    : "Adding Product..."
+                  : editingId
+                  ? "💾 Update Product"
+                  : "＋ Add Product"}
+              </button>
+
+              {/* CANCEL EDIT */}
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="ap-cancel"
+                  onClick={
+                    handleCancelEdit
+                  }
+                  disabled={loading}
+                >
+                  ✕ Cancel Edit
+                </button>
+              )}
+            </form>
+          </aside>
+
+          {/* ===============================================
+              RIGHT SIDE
+          =============================================== */}
+
+          <main className="ap-products-panel">
+            <div className="ap-products-heading">
+              <div>
+                <h3>
+                  📦 All Products
+                </h3>
+
+                <p>
+                  {filteredProducts.length}{" "}
+                  product
+                  {filteredProducts.length ===
+                  1
+                    ? ""
+                    : "s"}{" "}
+                  displayed
+                </p>
+              </div>
             </div>
-          )}
+
+            {/* =============================================
+                SEARCH + FILTER
+            ============================================= */}
+
+            <div className="ap-toolbar">
+              <div className="ap-search">
+                <span>🔍</span>
+
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Search products..."
+                />
+              </div>
+
+              <select
+                className="ap-filter"
+                value={categoryFilter}
+                onChange={(event) =>
+                  setCategoryFilter(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="All">
+                  All Categories
+                </option>
+
+                {categories.map(
+                  (category) => (
+                    <option
+                      key={category}
+                      value={category}
+                    >
+                      {category}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            {/* =============================================
+                LOADING
+            ============================================= */}
+
+            {productsLoading && (
+              <div className="ap-empty">
+                <div>⏳</div>
+
+                <h3>
+                  Loading products...
+                </h3>
+
+                <p>
+                  Please wait while
+                  ShopMind loads your
+                  catalog.
+                </p>
+              </div>
+            )}
+
+            {/* =============================================
+                EMPTY
+            ============================================= */}
+
+            {!productsLoading &&
+              filteredProducts.length ===
+                0 && (
+                <div className="ap-empty">
+                  <div>🔍</div>
+
+                  <h3>
+                    No products found
+                  </h3>
+
+                  <p>
+                    Try another search or
+                    select a different
+                    category.
+                  </p>
+                </div>
+              )}
+
+            {/* =============================================
+                PRODUCTS
+            ============================================= */}
+
+            {!productsLoading &&
+              filteredProducts.length >
+                0 && (
+                <div className="ap-product-grid">
+                  {filteredProducts.map(
+                    (product) => {
+                      const productId =
+                        getProductId(
+                          product
+                        );
+
+                      const stock =
+                        getProductStock(
+                          product
+                        );
+
+                      const stockInfo =
+                        getStockInfo(
+                          product
+                        );
+
+                      return (
+                        <article
+                          className="ap-product-card"
+                          key={productId}
+                        >
+                          {/* ===============================
+                              PRODUCT IMAGE
+                          =============================== */}
+
+                          <div className="ap-card-top">
+                            {product.image ? (
+                              <>
+                                <img
+                                  src={
+                                    product.image
+                                  }
+                                  alt={
+                                    product.name
+                                  }
+                                  className="ap-product-image"
+                                  loading="lazy"
+                                  onError={
+                                    handleImageError
+                                  }
+                                />
+
+                                <div
+                                  className="ap-product-icon ap-product-icon-fallback"
+                                  style={{
+                                    display:
+                                      "none",
+                                  }}
+                                >
+                                  {product.icon ||
+                                    categoryIcons[
+                                      product
+                                        .category
+                                    ] ||
+                                    "📦"}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="ap-product-icon ap-product-icon-fallback">
+                                {product.icon ||
+                                  categoryIcons[
+                                    product
+                                      .category
+                                  ] ||
+                                  "📦"}
+                              </div>
+                            )}
+
+                            {/* STOCK BADGE */}
+
+                            <span
+                              className={`ap-stock-badge ${stockInfo.className}`}
+                            >
+                              {
+                                stockInfo.label
+                              }
+                            </span>
+                          </div>
+
+                          {/* ===============================
+                              PRODUCT INFO
+                          =============================== */}
+
+                          <div className="ap-card-body">
+                            <h4>
+                              {product.name}
+                            </h4>
+
+                            <div className="ap-rating">
+                              ⭐{" "}
+                              {Number(
+                                product.rating ||
+                                  0
+                              ).toFixed(1)}
+                            </div>
+
+                            <div className="ap-price">
+                              ₹
+                              {formatPrice(
+                                product.price
+                              )}
+                            </div>
+
+                            <div className="ap-category">
+                              {
+                                product.category
+                              }
+                            </div>
+
+                            <div className="ap-inventory">
+                              Inventory:{" "}
+                              <strong>
+                                {Math.max(
+                                  0,
+                                  stock
+                                )}
+                              </strong>{" "}
+                              unit
+                              {Math.max(
+                                0,
+                                stock
+                              ) === 1
+                                ? ""
+                                : "s"}
+                            </div>
+                          </div>
+
+                          {/* ===============================
+                              ACTIONS
+                          =============================== */}
+
+                          <div className="ap-card-actions">
+                            <button
+                              type="button"
+                              className="ap-edit-btn"
+                              onClick={() =>
+                                handleEdit(
+                                  product
+                                )
+                              }
+                            >
+                              ✏️ Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              className="ap-delete-btn"
+                              onClick={() =>
+                                handleDelete(
+                                  product
+                                )
+                              }
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+          </main>
         </div>
       </div>
     </div>

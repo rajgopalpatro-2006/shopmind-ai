@@ -7,27 +7,67 @@ function CartModal({
   onClear,
   onCheckout,
 }) {
-  // =========================
+  // =====================================================
   // TOTAL ITEMS
-  // =========================
+  // =====================================================
 
   const totalItems = cart.reduce(
     (total, item) =>
-      total + (item.quantity || 1),
+      total + Number(item.quantity || 1),
     0
   );
 
-  // =========================
+  // =====================================================
   // TOTAL PRICE
-  // =========================
+  // =====================================================
 
   const totalPrice = cart.reduce(
     (total, item) =>
       total +
-      Number(item.price) *
-        (item.quantity || 1),
+      Number(item.price || 0) *
+        Number(item.quantity || 1),
     0
   );
+
+  // =====================================================
+  // FORMAT PRICE
+  // =====================================================
+
+  const formatPrice = (price) => {
+    return Number(price || 0).toLocaleString(
+      "en-IN"
+    );
+  };
+
+  // =====================================================
+  // PRODUCT ID
+  // =====================================================
+
+  const getProductId = (item) => {
+    return item?._id || item?.id;
+  };
+
+  // =====================================================
+  // IMAGE ERROR
+  // Show emoji if real image cannot load
+  // =====================================================
+
+  const handleImageError = (event) => {
+    const image = event.currentTarget;
+
+    image.style.display = "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display = "flex";
+    }
+  };
+
+  // =====================================================
+  // JSX
+  // =====================================================
 
   return (
     <div
@@ -36,13 +76,13 @@ function CartModal({
     >
       <div
         className="cart-modal"
-        onClick={(e) =>
-          e.stopPropagation()
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {/* =====================
+        {/* =================================================
             HEADER
-        ====================== */}
+        ================================================= */}
 
         <div className="cart-header">
           <div>
@@ -60,14 +100,15 @@ function CartModal({
             type="button"
             className="close-btn"
             onClick={onClose}
+            aria-label="Close cart"
           >
             ✕
           </button>
         </div>
 
-        {/* =====================
+        {/* =================================================
             EMPTY CART
-        ====================== */}
+        ================================================= */}
 
         {cart.length === 0 ? (
           <div className="cart-empty">
@@ -75,11 +116,13 @@ function CartModal({
               🛒
             </div>
 
-            <h3>Your cart is empty</h3>
+            <h3>
+              Your cart is empty
+            </h3>
 
             <p>
-              Add some products and
-              they will appear here.
+              Add some products and they
+              will appear here.
             </p>
 
             <button
@@ -87,37 +130,75 @@ function CartModal({
               className="continue-shopping-btn"
               onClick={onClose}
             >
-              Continue Shopping
+              ← Continue Shopping
             </button>
           </div>
         ) : (
           <>
-            {/* =====================
+            {/* =============================================
                 CART PRODUCTS
-            ====================== */}
+            ============================================= */}
 
             <div className="cart-items">
               {cart.map((item) => {
+                const productId =
+                  getProductId(item);
+
                 const quantity =
-                  item.quantity || 1;
+                  Number(
+                    item.quantity || 1
+                  );
+
+                const price =
+                  Number(
+                    item.price || 0
+                  );
 
                 const itemTotal =
-                  Number(item.price) *
-                  quantity;
+                  price * quantity;
 
                 return (
                   <div
                     className="cart-item"
-                    key={item._id}
+                    key={productId}
                   >
-                    {/* ICON */}
+                    {/* =====================================
+                        REAL PRODUCT IMAGE
+                    ===================================== */}
 
                     <div className="cart-item-icon">
-                      {item.icon ||
-                        "📦"}
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={
+                            item.name ||
+                            "Product"
+                          }
+                          className="cart-product-image"
+                          loading="lazy"
+                          onError={
+                            handleImageError
+                          }
+                        />
+                      ) : null}
+
+                      <span
+                        className="cart-product-image-fallback"
+                        style={{
+                          display:
+                            item.image
+                              ? "none"
+                              : "flex",
+                        }}
+                      >
+                        {item.icon ||
+                          "📦"}
+                      </span>
                     </div>
 
-                    {/* PRODUCT INFO */}
+                    {/* =====================================
+                        PRODUCT INFO
+                    ===================================== */}
 
                     <div className="cart-item-info">
                       <h3>
@@ -125,28 +206,30 @@ function CartModal({
                       </h3>
 
                       <p className="cart-category">
-                        {item.category}
+                        {item.category ||
+                          "Product"}
                       </p>
 
                       <p className="cart-price">
                         ₹
-                        {Number(
-                          item.price
-                        ).toLocaleString(
-                          "en-IN"
+                        {formatPrice(
+                          price
                         )}
                       </p>
 
-                      {/* QUANTITY */}
+                      {/* ===================================
+                          QUANTITY
+                      =================================== */}
 
                       <div className="cart-quantity">
                         <button
                           type="button"
                           onClick={() =>
                             onDecrease(
-                              item._id
+                              productId
                             )
                           }
+                          aria-label={`Decrease ${item.name} quantity`}
                         >
                           −
                         </button>
@@ -159,22 +242,25 @@ function CartModal({
                           type="button"
                           onClick={() =>
                             onIncrease(
-                              item._id
+                              productId
                             )
                           }
+                          aria-label={`Increase ${item.name} quantity`}
                         >
                           +
                         </button>
                       </div>
                     </div>
 
-                    {/* RIGHT SIDE */}
+                    {/* =====================================
+                        RIGHT SIDE
+                    ===================================== */}
 
                     <div className="cart-item-right">
                       <strong>
                         ₹
-                        {itemTotal.toLocaleString(
-                          "en-IN"
+                        {formatPrice(
+                          itemTotal
                         )}
                       </strong>
 
@@ -183,7 +269,7 @@ function CartModal({
                         className="cart-remove-btn"
                         onClick={() =>
                           onRemove(
-                            item._id
+                            productId
                           )
                         }
                       >
@@ -195,9 +281,9 @@ function CartModal({
               })}
             </div>
 
-            {/* =====================
+            {/* =============================================
                 CART SUMMARY
-            ====================== */}
+            ============================================= */}
 
             <div className="cart-summary">
               <div className="cart-summary-row">
@@ -217,13 +303,15 @@ function CartModal({
 
                 <strong>
                   ₹
-                  {totalPrice.toLocaleString(
-                    "en-IN"
+                  {formatPrice(
+                    totalPrice
                   )}
                 </strong>
               </div>
 
-              {/* CHECKOUT */}
+              {/* ===========================================
+                  CHECKOUT
+              =========================================== */}
 
               <button
                 type="button"
@@ -233,7 +321,9 @@ function CartModal({
                 Proceed to Checkout →
               </button>
 
-              {/* CLEAR CART */}
+              {/* ===========================================
+                  CLEAR CART
+              =========================================== */}
 
               <button
                 type="button"
@@ -242,6 +332,10 @@ function CartModal({
               >
                 🗑️ Clear Cart
               </button>
+
+              {/* ===========================================
+                  CONTINUE SHOPPING
+              =========================================== */}
 
               <button
                 type="button"

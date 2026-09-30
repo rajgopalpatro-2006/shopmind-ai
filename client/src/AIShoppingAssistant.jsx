@@ -5,43 +5,374 @@ function AIShoppingAssistant({
   onViewProduct,
   onAddToCart,
 }) {
+  // =====================================================
+  // BASIC STATE
+  // =====================================================
+
   const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] =
-    useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState([]);
   const [message, setMessage] = useState("");
 
-  // =====================================
-  // FORMAT PRICE
-  // =====================================
+  // =====================================================
+  // LANGUAGE + VOICE STATE
+  // =====================================================
 
-  const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString(
-      "en-IN"
-    );
+  const [language, setLanguage] = useState("en");
+  const [isListening, setIsListening] = useState(false);
+
+  // =====================================================
+  // LANGUAGE TEXT
+  // =====================================================
+
+  const translations = {
+    en: {
+      badge: "✨ SHOPMIND AI",
+      title: "Your AI Shopping Assistant",
+      subtitle:
+        "Tell me what you need, your budget and how you plan to use it.",
+
+      placeholder:
+        "Example: I need a gaming laptop under ₹1 lakh",
+
+      searchButton: "✨ Find for Me",
+      listening: "🎤 Listening...",
+      tryText: "Try:",
+
+      aiLaptop: "AI/ML laptop",
+      bestPhone: "Best phone",
+      gamingLaptop: "Gaming laptop",
+      headphones: "Headphones",
+
+      clear: "Clear",
+      recommendations: "✨ AI Recommendations",
+
+      ranked:
+        "Ranked using your request, budget, rating and availability.",
+
+      yourRequest: "Your request",
+
+      viewDetails: "View Details",
+      addToCart: "🛒 Add to Cart",
+
+      whyMatch: "Why this matches:",
+
+      empty:
+        "Tell me what you are looking for.",
+
+      noProducts:
+        "Products are not available right now.",
+
+      noResult:
+        "I couldn't find a suitable in-stock product for that request. Try changing your search.",
+
+      voiceUnsupported:
+        "Voice recognition is not supported in this browser.",
+
+      voiceError:
+        "I couldn't understand the voice input. Please try again.",
+    },
+
+    hi: {
+      badge: "✨ SHOPMIND AI",
+      title: "आपका AI शॉपिंग असिस्टेंट",
+
+      subtitle:
+        "बताइए आपको क्या चाहिए, आपका बजट क्या है और आप इसका उपयोग किसलिए करेंगे।",
+
+      placeholder:
+        "उदाहरण: मुझे ₹1 लाख के अंदर गेमिंग लैपटॉप चाहिए",
+
+      searchButton: "✨ मेरे लिए खोजें",
+      listening: "🎤 सुन रहा हूँ...",
+      tryText: "उदाहरण:",
+
+      aiLaptop: "AI/ML लैपटॉप",
+      bestPhone: "सबसे अच्छा फोन",
+      gamingLaptop: "गेमिंग लैपटॉप",
+      headphones: "हेडफोन",
+
+      clear: "साफ करें",
+      recommendations: "✨ AI सुझाव",
+
+      ranked:
+        "आपकी आवश्यकता, बजट, रेटिंग और उपलब्धता के आधार पर चुना गया।",
+
+      yourRequest: "आपकी मांग",
+
+      viewDetails: "विवरण देखें",
+      addToCart: "🛒 कार्ट में जोड़ें",
+
+      whyMatch: "यह आपके लिए क्यों सही है:",
+
+      empty:
+        "बताइए आप क्या खरीदना चाहते हैं।",
+
+      noProducts:
+        "अभी कोई उत्पाद उपलब्ध नहीं है।",
+
+      noResult:
+        "आपकी मांग के अनुसार कोई उपयुक्त उत्पाद नहीं मिला। कृपया खोज बदलें।",
+
+      voiceUnsupported:
+        "इस ब्राउज़र में वॉइस रिकग्निशन उपलब्ध नहीं है।",
+
+      voiceError:
+        "मैं आपकी आवाज़ नहीं समझ पाया। कृपया फिर से प्रयास करें।",
+    },
+
+    or: {
+      badge: "✨ SHOPMIND AI",
+      title: "ଆପଣଙ୍କ AI Shopping Assistant",
+
+      subtitle:
+        "ଆପଣଙ୍କୁ କଣ ଦରକାର, ବଜେଟ୍ କେତେ ଏବଂ କେଉଁ କାମ ପାଇଁ ଦରକାର କୁହନ୍ତୁ।",
+
+      placeholder:
+        "ଉଦାହରଣ: ମୋତେ ₹1 ଲକ୍ଷ ଭିତରେ gaming laptop ଦରକାର",
+
+      searchButton: "✨ ମୋ ପାଇଁ ଖୋଜନ୍ତୁ",
+      listening: "🎤 ଶୁଣୁଛି...",
+      tryText: "ଉଦାହରଣ:",
+
+      aiLaptop: "AI/ML Laptop",
+      bestPhone: "Best Phone",
+      gamingLaptop: "Gaming Laptop",
+      headphones: "Headphones",
+
+      clear: "Clear",
+      recommendations: "✨ AI Recommendations",
+
+      ranked:
+        "ଆପଣଙ୍କ ଆବଶ୍ୟକତା, ବଜେଟ୍, rating ଏବଂ availability ଅନୁସାରେ ବାଛାଯାଇଛି।",
+
+      yourRequest: "ଆପଣଙ୍କ ଆବଶ୍ୟକତା",
+
+      viewDetails: "Details ଦେଖନ୍ତୁ",
+      addToCart: "🛒 Cart ରେ ଯୋଡନ୍ତୁ",
+
+      whyMatch: "ଏହା କାହିଁକି match କରୁଛି:",
+
+      empty:
+        "ଆପଣ କଣ ଖୋଜୁଛନ୍ତି କୁହନ୍ତୁ।",
+
+      noProducts:
+        "ବର୍ତ୍ତମାନ product available ନାହିଁ।",
+
+      noResult:
+        "ଆପଣଙ୍କ requirement ଅନୁସାରେ suitable product ମିଳିଲା ନାହିଁ। Search ବଦଳାଇ ପୁଣି try କରନ୍ତୁ।",
+
+      voiceUnsupported:
+        "ଏହି browser ରେ voice recognition support ନାହିଁ।",
+
+      voiceError:
+        "ଆପଣଙ୍କ voice ବୁଝିପାରିଲି ନାହିଁ। ପୁଣି try କରନ୍ତୁ।",
+    },
   };
 
-  // =====================================
+  const t = translations[language];
+
+  // =====================================================
+  // LANGUAGE CHANGE
+  // =====================================================
+
+  const handleLanguageChange = (event) => {
+    const selectedLanguage = event.target.value;
+
+    setLanguage(selectedLanguage);
+    setMessage("");
+  };
+
+  // =====================================================
+  // NORMALIZE MULTILINGUAL SEARCH
+  // Converts common Hindi/Odia shopping words into
+  // searchable English terms used by our product engine.
+  // =====================================================
+
+  const normalizeSearchText = (text) => {
+    let normalized = text.toLowerCase().trim();
+
+    const replacements = [
+      // =========================
+      // HINDI
+      // =========================
+
+      ["लैपटॉप", " laptop "],
+      ["लेपटॉप", " laptop "],
+
+      ["मोबाइल", " smartphone "],
+      ["फोन", " smartphone "],
+      ["स्मार्टफोन", " smartphone "],
+
+      ["हेडफोन", " headphones "],
+      ["हेडफोन्स", " headphones "],
+      ["ईयरफोन", " headphones "],
+
+      ["स्मार्टवॉच", " smartwatch "],
+      ["घड़ी", " smartwatch "],
+
+      ["गेमिंग", " gaming "],
+
+      ["सस्ता", " cheap "],
+      ["सस्ती", " cheap "],
+      ["सस्ते", " cheap "],
+
+      ["बजट", " budget "],
+
+      ["सबसे अच्छा", " best "],
+      ["अच्छा", " best "],
+      ["अच्छी", " best "],
+
+      ["रेटिंग", " rating "],
+
+      ["के अंदर", " under "],
+      ["से कम", " under "],
+      ["तक", " upto "],
+
+      ["लाख", " lakh "],
+      ["हजार", " thousand "],
+
+      ["मुझे", " "],
+      ["चाहिए", " "],
+      ["दिखाओ", " show "],
+      ["खोजो", " find "],
+
+      // =========================
+      // ODIA
+      // =========================
+
+      ["ଲାପଟପ୍", " laptop "],
+      ["ଲାପଟପ", " laptop "],
+
+      ["ମୋବାଇଲ୍", " smartphone "],
+      ["ମୋବାଇଲ", " smartphone "],
+      ["ଫୋନ୍", " smartphone "],
+      ["ଫୋନ", " smartphone "],
+      ["ସ୍ମାର୍ଟଫୋନ୍", " smartphone "],
+
+      ["ହେଡଫୋନ୍", " headphones "],
+      ["ହେଡଫୋନ", " headphones "],
+      ["ଇୟରଫୋନ୍", " headphones "],
+
+      ["ସ୍ମାର୍ଟୱାଚ୍", " smartwatch "],
+      ["ଘଡ଼ି", " smartwatch "],
+
+      ["ଗେମିଂ", " gaming "],
+
+      ["ଶସ୍ତା", " cheap "],
+      ["କମ୍ ଦାମ", " cheap "],
+
+      ["ବଜେଟ୍", " budget "],
+      ["ବଜେଟ", " budget "],
+
+      ["ସବୁଠାରୁ ଭଲ", " best "],
+      ["ଭଲ", " best "],
+
+      ["ରେଟିଂ", " rating "],
+
+      ["ଭିତରେ", " under "],
+      ["ଠାରୁ କମ୍", " under "],
+      ["ପର୍ଯ୍ୟନ୍ତ", " upto "],
+
+      ["ଲକ୍ଷ", " lakh "],
+      ["ଲକ୍ଷ୍ୟ", " lakh "],
+      ["ହଜାର", " thousand "],
+
+      ["ମୋତେ", " "],
+      ["ଦରକାର", " "],
+      ["ଦେଖାନ୍ତୁ", " show "],
+      ["ଖୋଜନ୍ତୁ", " find "],
+    ];
+
+    replacements.forEach(([original, replacement]) => {
+      normalized = normalized.split(original).join(replacement);
+    });
+
+    // ===================================================
+    // HINDI NUMBERS -> ENGLISH NUMBERS
+    // ===================================================
+
+    const hindiNumbers = {
+      "०": "0",
+      "१": "1",
+      "२": "2",
+      "३": "3",
+      "४": "4",
+      "५": "5",
+      "६": "6",
+      "७": "7",
+      "८": "8",
+      "९": "9",
+    };
+
+    // ===================================================
+    // ODIA NUMBERS -> ENGLISH NUMBERS
+    // ===================================================
+
+    const odiaNumbers = {
+      "୦": "0",
+      "୧": "1",
+      "୨": "2",
+      "୩": "3",
+      "୪": "4",
+      "୫": "5",
+      "୬": "6",
+      "୭": "7",
+      "୮": "8",
+      "୯": "9",
+    };
+
+    normalized = normalized
+      .split("")
+      .map(
+        (character) =>
+          hindiNumbers[character] ||
+          odiaNumbers[character] ||
+          character
+      )
+      .join("");
+
+    return normalized
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  // =====================================================
+  // FORMAT PRICE
+  // =====================================================
+
+  const formatPrice = (price) => {
+    return Number(price || 0).toLocaleString("en-IN");
+  };
+    // =====================================================
   // EXTRACT BUDGET
-  // =====================================
+  // Supports:
+  // 70000
+  // ₹70000
+  // 70,000
+  // 70k
+  // 1 lakh
+  // 1.5 lakh
+  // Hindi/Odia text after normalization
+  // =====================================================
 
   const extractBudget = (text) => {
-    const cleanedText = text
-      .toLowerCase()
-      .replace(/₹/g, "")
-      .replace(/,/g, "");
+    const normalized =
+      normalizeSearchText(text)
+        .toLowerCase()
+        .replace(/,/g, "");
 
+    // ===============================================
+    // LAKH
     // Examples:
-    // under 70000
-    // below 1 lakh
-    // less than 50000
-    // budget 80000
-    // upto 90000
-    // up to 90000
+    // 1 lakh
+    // 1.5 lakh
+    // ===============================================
 
-    const lakhMatch = cleanedText.match(
-      /(?:under|below|less than|upto|up to|budget(?: of)?|within)\s*(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)/
-    );
+    const lakhMatch =
+      normalized.match(
+        /(\d+(?:\.\d+)?)\s*(?:lakh|lac)\b/i
+      );
 
     if (lakhMatch) {
       return Math.round(
@@ -49,9 +380,17 @@ function AIShoppingAssistant({
       );
     }
 
-    const thousandMatch = cleanedText.match(
-      /(?:under|below|less than|upto|up to|budget(?: of)?|within)\s*(\d+(?:\.\d+)?)\s*k\b/
-    );
+    // ===============================================
+    // THOUSAND
+    // Examples:
+    // 70 thousand
+    // 50 thousand
+    // ===============================================
+
+    const thousandMatch =
+      normalized.match(
+        /(\d+(?:\.\d+)?)\s*thousand\b/i
+      );
 
     if (thousandMatch) {
       return Math.round(
@@ -59,651 +398,1419 @@ function AIShoppingAssistant({
       );
     }
 
-    const normalMatch = cleanedText.match(
-      /(?:under|below|less than|upto|up to|budget(?: of)?|within)\s*(\d{3,})/
-    );
+    // ===============================================
+    // K FORMAT
+    // Examples:
+    // 70k
+    // 50k
+    // ===============================================
 
-    if (normalMatch) {
-      return Number(normalMatch[1]);
+    const kMatch =
+      normalized.match(
+        /(\d+(?:\.\d+)?)\s*k\b/i
+      );
+
+    if (kMatch) {
+      return Math.round(
+        Number(kMatch[1]) * 1000
+      );
+    }
+
+    // ===============================================
+    // RUPEE / NORMAL NUMBER
+    // Examples:
+    // ₹70000
+    // under 70000
+    // budget 50000
+    // ===============================================
+
+    const moneyPatterns = [
+      /₹\s*(\d{4,7})/i,
+      /under\s*₹?\s*(\d{4,7})/i,
+      /below\s*₹?\s*(\d{4,7})/i,
+      /less\s+than\s*₹?\s*(\d{4,7})/i,
+      /upto\s*₹?\s*(\d{4,7})/i,
+      /up\s+to\s*₹?\s*(\d{4,7})/i,
+      /budget\s*(?:of|is|around)?\s*₹?\s*(\d{4,7})/i,
+    ];
+
+    for (
+      const pattern of moneyPatterns
+    ) {
+      const match =
+        normalized.match(pattern);
+
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+
+    // ===============================================
+    // FALLBACK
+    // Detect a realistic price-like number.
+    // Avoid treating ratings such as 4.6 as budget.
+    // ===============================================
+
+    const numbers =
+      normalized.match(/\d+/g);
+
+    if (numbers) {
+      const possibleBudgets =
+        numbers
+          .map(Number)
+          .filter(
+            (number) =>
+              number >= 1000 &&
+              number <= 10000000
+          );
+
+      if (
+        possibleBudgets.length > 0
+      ) {
+        return Math.max(
+          ...possibleBudgets
+        );
+      }
     }
 
     return null;
   };
 
-  // =====================================
+  // =====================================================
   // DETECT CATEGORY
-  // =====================================
+  // =====================================================
 
   const detectCategory = (text) => {
-    const lowerText = text.toLowerCase();
+    const q =
+      normalizeSearchText(text)
+        .toLowerCase();
+
+    // ===============================================
+    // LAPTOP
+    // ===============================================
 
     if (
-      lowerText.includes("laptop") ||
-      lowerText.includes("notebook")
+      q.includes("laptop") ||
+      q.includes("notebook") ||
+      q.includes("macbook") ||
+      q.includes("computer")
     ) {
-      return "Laptop";
+      return "laptop";
     }
 
-    if (
-      lowerText.includes("phone") ||
-      lowerText.includes("smartphone") ||
-      lowerText.includes("mobile") ||
-      lowerText.includes("iphone")
-    ) {
-      return "Smartphone";
-    }
+    // ===============================================
+    // SMARTPHONE
+    // ===============================================
 
     if (
-      lowerText.includes("headphone") ||
-      lowerText.includes("headphones") ||
-      lowerText.includes("earphone") ||
-      lowerText.includes("earphones") ||
-      lowerText.includes("headset")
+      q.includes("smartphone") ||
+      q.includes("mobile") ||
+      q.includes("phone") ||
+      q.includes("iphone")
     ) {
-      return "Headphones";
+      return "smartphone";
     }
 
+    // ===============================================
+    // HEADPHONES
+    // ===============================================
+
     if (
-      lowerText.includes("watch") ||
-      lowerText.includes("smartwatch")
+      q.includes("headphone") ||
+      q.includes("headphones") ||
+      q.includes("earphone") ||
+      q.includes("earphones") ||
+      q.includes("earbuds") ||
+      q.includes("headset")
     ) {
-      return "Smartwatch";
+      return "headphones";
+    }
+
+    // ===============================================
+    // SMARTWATCH
+    // ===============================================
+
+    if (
+      q.includes("smartwatch") ||
+      q.includes("smart watch") ||
+      q.includes("watch")
+    ) {
+      return "smartwatch";
     }
 
     return null;
   };
 
-  // =====================================
-  // DETECT INTENT
-  // =====================================
+  // =====================================================
+  // DETECT SHOPPING INTENT
+  // =====================================================
 
   const detectIntent = (text) => {
-    const lowerText = text.toLowerCase();
+    const q =
+      normalizeSearchText(text)
+        .toLowerCase();
 
-    const intent = {
-      gaming: false,
-      aiMl: false,
-      cheap: false,
-      best: false,
-      premium: false,
-      highlyRated: false,
+    // ===============================================
+    // CHEAP / BUDGET
+    // ===============================================
+
+    if (
+      q.includes("cheap") ||
+      q.includes("cheapest") ||
+      q.includes("budget") ||
+      q.includes("affordable") ||
+      q.includes("low price") ||
+      q.includes("lowest price")
+    ) {
+      return "budget";
+    }
+
+    // ===============================================
+    // BEST / HIGH RATING
+    // ===============================================
+
+    if (
+      q.includes("best") ||
+      q.includes("top") ||
+      q.includes("highest rated") ||
+      q.includes("good rating") ||
+      q.includes("premium")
+    ) {
+      return "best";
+    }
+
+    // ===============================================
+    // GAMING
+    // ===============================================
+
+    if (
+      q.includes("gaming") ||
+      q.includes("game") ||
+      q.includes("gamer")
+    ) {
+      return "gaming";
+    }
+
+    // ===============================================
+    // AI / ML
+    // ===============================================
+
+    if (
+      q.includes("ai/ml") ||
+      q.includes("ai ml") ||
+      q.includes("machine learning") ||
+      q.includes("deep learning") ||
+      q.includes("artificial intelligence") ||
+      q.includes("data science")
+    ) {
+      return "ai";
+    }
+
+    // ===============================================
+    // STUDENT
+    // ===============================================
+
+    if (
+      q.includes("student") ||
+      q.includes("college") ||
+      q.includes("university") ||
+      q.includes("study") ||
+      q.includes("studying")
+    ) {
+      return "student";
+    }
+
+    // ===============================================
+    // CODING / PROGRAMMING
+    // ===============================================
+
+    if (
+      q.includes("coding") ||
+      q.includes("programming") ||
+      q.includes("developer") ||
+      q.includes("development") ||
+      q.includes("software")
+    ) {
+      return "coding";
+    }
+
+    // ===============================================
+    // CAMERA
+    // ===============================================
+
+    if (
+      q.includes("camera") ||
+      q.includes("photo") ||
+      q.includes("photography") ||
+      q.includes("video") ||
+      q.includes("vlogging")
+    ) {
+      return "camera";
+    }
+
+    // ===============================================
+    // MUSIC
+    // ===============================================
+
+    if (
+      q.includes("music") ||
+      q.includes("sound") ||
+      q.includes("audio") ||
+      q.includes("noise cancellation")
+    ) {
+      return "music";
+    }
+
+    // ===============================================
+    // FITNESS
+    // ===============================================
+
+    if (
+      q.includes("fitness") ||
+      q.includes("gym") ||
+      q.includes("running") ||
+      q.includes("health") ||
+      q.includes("workout")
+    ) {
+      return "fitness";
+    }
+
+    return "general";
+  };
+
+  // =====================================================
+  // DETECT PURPOSES
+  // Allows more than one purpose.
+  // Example:
+  // "AI ML and gaming laptop"
+  // -> ["ai", "gaming"]
+  // =====================================================
+
+  const detectPurposes = (text) => {
+    const q =
+      normalizeSearchText(text)
+        .toLowerCase();
+
+    const purposes = [];
+
+    if (
+      q.includes("gaming") ||
+      q.includes("gamer") ||
+      q.includes("game")
+    ) {
+      purposes.push("gaming");
+    }
+
+    if (
+      q.includes("ai/ml") ||
+      q.includes("ai ml") ||
+      q.includes("machine learning") ||
+      q.includes("deep learning") ||
+      q.includes("artificial intelligence") ||
+      q.includes("data science")
+    ) {
+      purposes.push("ai");
+    }
+
+    if (
+      q.includes("coding") ||
+      q.includes("programming") ||
+      q.includes("developer") ||
+      q.includes("development") ||
+      q.includes("software")
+    ) {
+      purposes.push("coding");
+    }
+
+    if (
+      q.includes("student") ||
+      q.includes("college") ||
+      q.includes("university") ||
+      q.includes("study")
+    ) {
+      purposes.push("student");
+    }
+
+    if (
+      q.includes("camera") ||
+      q.includes("photography") ||
+      q.includes("photo") ||
+      q.includes("vlogging")
+    ) {
+      purposes.push("camera");
+    }
+
+    if (
+      q.includes("music") ||
+      q.includes("audio") ||
+      q.includes("sound") ||
+      q.includes("noise cancellation")
+    ) {
+      purposes.push("music");
+    }
+
+    if (
+      q.includes("fitness") ||
+      q.includes("gym") ||
+      q.includes("running") ||
+      q.includes("workout")
+    ) {
+      purposes.push("fitness");
+    }
+
+    return purposes;
+  };
+
+  // =====================================================
+  // DETECT BUDGET DIRECTION
+  // =====================================================
+
+  const detectBudgetType = (text) => {
+    const q =
+      normalizeSearchText(text)
+        .toLowerCase();
+
+    if (
+      q.includes("under") ||
+      q.includes("below") ||
+      q.includes("less than") ||
+      q.includes("upto") ||
+      q.includes("up to") ||
+      q.includes("budget")
+    ) {
+      return "maximum";
+    }
+
+    if (
+      q.includes("above") ||
+      q.includes("more than") ||
+      q.includes("over")
+    ) {
+      return "minimum";
+    }
+
+    return "maximum";
+  };
+
+  // =====================================================
+  // BUILD SEARCH UNDERSTANDING
+  // =====================================================
+
+  const understandQuery = (text) => {
+    const normalized =
+      normalizeSearchText(text);
+
+    return {
+      originalText: text,
+      normalizedText: normalized,
+
+      category:
+        detectCategory(text),
+
+      budget:
+        extractBudget(text),
+
+      budgetType:
+        detectBudgetType(text),
+
+      intent:
+        detectIntent(text),
+
+      purposes:
+        detectPurposes(text),
     };
+  };
+    // =====================================================
+  // PRODUCT HELPERS
+  // =====================================================
 
-    if (
-      lowerText.includes("gaming") ||
-      lowerText.includes("game")
-    ) {
-      intent.gaming = true;
-    }
-
-    if (
-      lowerText.includes("ai/ml") ||
-      lowerText.includes("ai ml") ||
-      lowerText.includes(
-        "machine learning"
-      ) ||
-      lowerText.includes(
-        "artificial intelligence"
-      ) ||
-      lowerText.includes("coding") ||
-      lowerText.includes(
-        "programming"
-      )
-    ) {
-      intent.aiMl = true;
-    }
-
-    if (
-      lowerText.includes("cheap") ||
-      lowerText.includes("affordable") ||
-      lowerText.includes("budget")
-    ) {
-      intent.cheap = true;
-    }
-
-    if (
-      lowerText.includes("best") ||
-      lowerText.includes("recommend") ||
-      lowerText.includes(
-        "recommended"
-      )
-    ) {
-      intent.best = true;
-    }
-
-    if (
-      lowerText.includes("premium") ||
-      lowerText.includes("flagship")
-    ) {
-      intent.premium = true;
-    }
-
-    if (
-      lowerText.includes(
-        "highest rated"
-      ) ||
-      lowerText.includes(
-        "best rated"
-      ) ||
-      lowerText.includes(
-        "top rated"
-      )
-    ) {
-      intent.highlyRated = true;
-    }
-
-    return intent;
+  const getProductId = (product) => {
+    return product?._id || product?.id;
   };
 
-  // =====================================
-  // PRODUCT SEARCHABLE TEXT
-  // =====================================
-
-  const getSearchableText = (product) => {
-    return `
-      ${product.name || ""}
-      ${product.category || ""}
-      ${product.description || ""}
-    `.toLowerCase();
+  const getProductStock = (product) => {
+    return Number(
+      product?.stock ??
+        product?.quantity ??
+        0
+    );
   };
 
-  // =====================================
-  // SCORE PRODUCT
-  // =====================================
+  const getProductPrice = (product) => {
+    return Number(product?.price || 0);
+  };
 
-  const calculateScore = (
+  const getProductRating = (product) => {
+    return Number(product?.rating || 0);
+  };
+
+  // =====================================================
+  // CREATE SEARCHABLE PRODUCT TEXT
+  // =====================================================
+
+  const getProductSearchText = (product) => {
+    return [
+      product?.name,
+      product?.category,
+      product?.description,
+      product?.brand,
+      product?.features?.join?.(" "),
+      product?.tags?.join?.(" "),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+  };
+
+  // =====================================================
+  // CATEGORY MATCH
+  // =====================================================
+
+  const categoryMatches = (
     product,
-    text,
-    category,
-    budget,
-    intent
+    requestedCategory
+  ) => {
+    if (!requestedCategory) {
+      return true;
+    }
+
+    const text =
+      getProductSearchText(product);
+
+    if (
+      requestedCategory === "laptop"
+    ) {
+      return (
+        text.includes("laptop") ||
+        text.includes("macbook") ||
+        text.includes("notebook")
+      );
+    }
+
+    if (
+      requestedCategory ===
+      "smartphone"
+    ) {
+      return (
+        text.includes("smartphone") ||
+        text.includes("phone") ||
+        text.includes("mobile") ||
+        text.includes("galaxy") ||
+        text.includes("oneplus")
+      );
+    }
+
+    if (
+      requestedCategory ===
+      "headphones"
+    ) {
+      return (
+        text.includes("headphone") ||
+        text.includes("headphones") ||
+        text.includes("earphone") ||
+        text.includes("audio")
+      );
+    }
+
+    if (
+      requestedCategory ===
+      "smartwatch"
+    ) {
+      return (
+        text.includes("smartwatch") ||
+        text.includes("smart watch") ||
+        text.includes("watch")
+      );
+    }
+
+    return true;
+  };
+
+  // =====================================================
+  // PURPOSE KEYWORDS
+  // =====================================================
+
+  const purposeKeywords = {
+    gaming: [
+      "gaming",
+      "game",
+      "rog",
+      "gpu",
+      "graphics",
+      "rtx",
+      "performance",
+    ],
+
+    ai: [
+      "ai",
+      "machine learning",
+      "deep learning",
+      "ml",
+      "gpu",
+      "neural",
+      "data science",
+      "performance",
+    ],
+
+    coding: [
+      "coding",
+      "programming",
+      "developer",
+      "development",
+      "software",
+      "performance",
+      "laptop",
+    ],
+
+    student: [
+      "student",
+      "college",
+      "study",
+      "portable",
+      "battery",
+      "lightweight",
+      "laptop",
+    ],
+
+    camera: [
+      "camera",
+      "photo",
+      "photography",
+      "video",
+      "megapixel",
+    ],
+
+    music: [
+      "music",
+      "audio",
+      "sound",
+      "headphone",
+      "noise cancellation",
+      "anc",
+    ],
+
+    fitness: [
+      "fitness",
+      "health",
+      "workout",
+      "running",
+      "watch",
+    ],
+  };
+
+  // =====================================================
+  // SCORE PRODUCT
+  // =====================================================
+
+  const scoreProduct = (
+    product,
+    understanding
   ) => {
     let score = 0;
 
-    const searchable =
-      getSearchableText(product);
-
-    const productPrice =
-      Number(product.price || 0);
-
-    const productRating =
-      Number(product.rating || 0);
-
-    const productStock =
-      Number(product.stock || 0);
-
-    // -------------------------------------
-    // CATEGORY
-    // -------------------------------------
-
-    if (
-      category &&
-      product.category
-        ?.toLowerCase() ===
-        category.toLowerCase()
-    ) {
-      score += 50;
-    }
-
-    // -------------------------------------
-    // BUDGET
-    // -------------------------------------
-
-    if (budget !== null) {
-      if (productPrice <= budget) {
-        score += 35;
-
-        // Give products close to the
-        // budget a slightly better score.
-        if (
-          productPrice >=
-          budget * 0.7
-        ) {
-          score += 10;
-        }
-      } else {
-        score -= 100;
-      }
-    }
-
-    // -------------------------------------
-    // WORD MATCHING
-    // -------------------------------------
-
-    const ignoredWords = new Set([
-      "the",
-      "and",
-      "for",
-      "with",
-      "under",
-      "below",
-      "than",
-      "need",
-      "want",
-      "show",
-      "find",
-      "give",
-      "looking",
-      "product",
-      "products",
-      "best",
-      "good",
-      "please",
-      "recommend",
-      "recommended",
-      "budget",
-    ]);
-
-    const words = text
-      .toLowerCase()
-      .replace(/[₹,./]/g, " ")
-      .split(/\s+/)
-      .filter(
-        (word) =>
-          word.length > 2 &&
-          !ignoredWords.has(word) &&
-          !/^\d+$/.test(word)
-      );
-
-    words.forEach((word) => {
-      if (
-        searchable.includes(word)
-      ) {
-        score += 8;
-      }
-    });
-
-    // -------------------------------------
-    // GAMING
-    // -------------------------------------
-
-    if (intent.gaming) {
-      if (
-        searchable.includes("gaming") ||
-        searchable.includes("game") ||
-        searchable.includes("rog") ||
-        searchable.includes("gpu") ||
-        searchable.includes("rtx")
-      ) {
-        score += 30;
-      }
-    }
-
-    // -------------------------------------
-    // AI / ML / CODING
-    // -------------------------------------
-
-    if (intent.aiMl) {
-      if (
-        product.category
-          ?.toLowerCase() ===
-        "laptop"
-      ) {
-        score += 20;
-      }
-
-      if (
-        searchable.includes("ai") ||
-        searchable.includes(
-          "machine learning"
-        ) ||
-        searchable.includes(
-          "performance"
-        ) ||
-        searchable.includes(
-          "gaming"
-        ) ||
-        searchable.includes("gpu") ||
-        searchable.includes("rtx")
-      ) {
-        score += 20;
-      }
-    }
-
-    // -------------------------------------
-    // HIGH RATING
-    // -------------------------------------
-
-    score += productRating * 3;
-
-    if (
-      intent.highlyRated ||
-      intent.best
-    ) {
-      score += productRating * 4;
-    }
-
-    // -------------------------------------
-    // STOCK
-    // -------------------------------------
-
-    if (productStock <= 0) {
-      score -= 200;
-    } else {
-      score += 10;
-    }
-
-    return score;
-  };
-
-  // =====================================
-  // CREATE REASONS
-  // =====================================
-
-  const createReasons = (
-    product,
-    category,
-    budget,
-    intent
-  ) => {
     const reasons = [];
 
+    const text =
+      getProductSearchText(product);
+
     const price =
-      Number(product.price || 0);
+      getProductPrice(product);
 
     const rating =
-      Number(product.rating || 0);
+      getProductRating(product);
 
     const stock =
-      Number(product.stock || 0);
+      getProductStock(product);
 
-    const searchable =
-      getSearchableText(product);
+    const {
+      category,
+      budget,
+      budgetType,
+      intent,
+      purposes,
+    } = understanding;
 
-    if (
-      category &&
-      product.category
-        ?.toLowerCase() ===
-        category.toLowerCase()
-    ) {
-      reasons.push(
-        `Matches your ${category.toLowerCase()} requirement`
-      );
+    // ===================================================
+    // CATEGORY SCORE
+    // ===================================================
+
+    if (category) {
+      if (
+        categoryMatches(
+          product,
+          category
+        )
+      ) {
+        score += 40;
+
+        reasons.push(
+          "category-match"
+        );
+      } else {
+        score -= 50;
+      }
     }
 
-    if (
-      budget !== null &&
-      price <= budget
-    ) {
-      reasons.push(
-        `Within your ₹${formatPrice(
-          budget
-        )} budget`
-      );
+    // ===================================================
+    // BUDGET SCORE
+    // ===================================================
+
+    if (budget) {
+      if (
+        budgetType ===
+        "maximum"
+      ) {
+        if (price <= budget) {
+          score += 35;
+
+          reasons.push(
+            "within-budget"
+          );
+
+          // Product closer to budget
+          // gets a small relevance boost.
+          const difference =
+            budget - price;
+
+          const ratio =
+            difference /
+            Math.max(
+              budget,
+              1
+            );
+
+          if (ratio <= 0.15) {
+            score += 8;
+          } else if (
+            ratio <= 0.35
+          ) {
+            score += 4;
+          }
+        } else {
+          // Penalize products over budget.
+          const overBy =
+            price - budget;
+
+          const percentage =
+            overBy /
+            Math.max(
+              budget,
+              1
+            );
+
+          if (percentage <= 0.1) {
+            score -= 10;
+          } else {
+            score -= 35;
+          }
+        }
+      }
+
+      if (
+        budgetType ===
+        "minimum"
+      ) {
+        if (price >= budget) {
+          score += 20;
+        } else {
+          score -= 15;
+        }
+      }
     }
 
+    // ===================================================
+    // PURPOSE SCORE
+    // ===================================================
+
+    purposes.forEach(
+      (purpose) => {
+        const keywords =
+          purposeKeywords[
+            purpose
+          ] || [];
+
+        let purposeMatched =
+          false;
+
+        keywords.forEach(
+          (keyword) => {
+            if (
+              text.includes(
+                keyword
+              )
+            ) {
+              score += 5;
+
+              purposeMatched =
+                true;
+            }
+          }
+        );
+
+        if (purposeMatched) {
+          reasons.push(
+            `${purpose}-match`
+          );
+        }
+      }
+    );
+
+    // ===================================================
+    // INTENT SCORE
+    // ===================================================
+
     if (
-      intent.gaming &&
+      intent === "gaming" &&
       (
-        searchable.includes("gaming") ||
-        searchable.includes("rog") ||
-        searchable.includes("gpu") ||
-        searchable.includes("rtx")
+        text.includes("gaming") ||
+        text.includes("rog") ||
+        text.includes("rtx") ||
+        text.includes("gpu")
       )
     ) {
+      score += 25;
+
       reasons.push(
-        "Suitable for gaming and performance-focused use"
+        "gaming-match"
       );
     }
 
     if (
-      intent.aiMl &&
-      product.category
-        ?.toLowerCase() ===
-        "laptop"
+      intent === "ai" &&
+      (
+        text.includes("ai") ||
+        text.includes("gpu") ||
+        text.includes("performance") ||
+        text.includes("laptop")
+      )
     ) {
+      score += 20;
+
       reasons.push(
-        "Relevant for AI/ML, coding and development workloads"
+        "ai-match"
       );
     }
 
-    if (rating >= 4) {
+    if (
+      intent === "coding" &&
+      (
+        text.includes("laptop") ||
+        text.includes("macbook") ||
+        text.includes("performance")
+      )
+    ) {
+      score += 18;
+
       reasons.push(
-        `Strong ${rating.toFixed(
-          1
-        )}/5 rating`
+        "coding-match"
       );
     }
+
+    if (
+      intent === "camera" &&
+      text.includes("camera")
+    ) {
+      score += 20;
+
+      reasons.push(
+        "camera-match"
+      );
+    }
+
+    if (
+      intent === "music" &&
+      (
+        text.includes("audio") ||
+        text.includes("headphone") ||
+        text.includes("sound")
+      )
+    ) {
+      score += 20;
+
+      reasons.push(
+        "music-match"
+      );
+    }
+
+    if (
+      intent === "fitness" &&
+      (
+        text.includes("fitness") ||
+        text.includes("watch") ||
+        text.includes("health")
+      )
+    ) {
+      score += 20;
+
+      reasons.push(
+        "fitness-match"
+      );
+    }
+
+    // ===================================================
+    // RATING SCORE
+    // ===================================================
+
+    if (rating >= 4.8) {
+      score += 15;
+
+      reasons.push(
+        "excellent-rating"
+      );
+    } else if (
+      rating >= 4.5
+    ) {
+      score += 12;
+
+      reasons.push(
+        "high-rating"
+      );
+    } else if (
+      rating >= 4
+    ) {
+      score += 8;
+    }
+
+    // ===================================================
+    // STOCK SCORE
+    // ===================================================
 
     if (stock > 0) {
+      score += 10;
+
       reasons.push(
-        `${stock} unit${
-          stock === 1 ? "" : "s"
-        } currently in stock`
+        "in-stock"
+      );
+    } else {
+      score -= 100;
+    }
+
+    // ===================================================
+    // BUDGET INTENT
+    // ===================================================
+
+    if (
+      intent === "budget"
+    ) {
+      score += Math.max(
+        0,
+        15 -
+          price / 10000
       );
     }
 
-    if (reasons.length === 0) {
-      reasons.push(
-        "Relevant to your search"
-      );
+    // ===================================================
+    // BEST PRODUCT INTENT
+    // ===================================================
+
+    if (
+      intent === "best"
+    ) {
+      score += rating * 4;
     }
 
-    return reasons.slice(0, 4);
+    return {
+      ...product,
+
+      aiScore: score,
+
+      aiReasons:
+        Array.from(
+          new Set(reasons)
+        ),
+    };
   };
 
-  // =====================================
-  // RUN AI SEARCH
-  // =====================================
+  // =====================================================
+  // GET MATCH REASONS IN USER'S LANGUAGE
+  // =====================================================
 
-  const handleSearch = (e) => {
-    e.preventDefault();
+  const getReasonText = (
+    reason
+  ) => {
+    const reasonTranslations = {
+      en: {
+        "category-match":
+          "Matches the product type you requested",
 
-    const text = query.trim();
+        "within-budget":
+          "Fits within your budget",
 
-    if (!text) {
-      setMessage(
-        "Tell me what you are looking for."
-      );
+        "gaming-match":
+          "Suitable for gaming",
 
-      setResults([]);
+        "ai-match":
+          "Relevant for AI/ML workloads",
 
-      return;
+        "coding-match":
+          "Suitable for coding and development",
+
+        "camera-match":
+          "Matches your camera requirement",
+
+        "music-match":
+          "Suitable for music and audio",
+
+        "fitness-match":
+          "Useful for fitness activities",
+
+        "excellent-rating":
+          "Excellent customer rating",
+
+        "high-rating":
+          "Highly rated",
+
+        "in-stock":
+          "Currently in stock",
+
+        "student-match":
+          "Suitable for students",
+      },
+
+      hi: {
+        "category-match":
+          "आपकी मांगी गई प्रोडक्ट कैटेगरी से मेल खाता है",
+
+        "within-budget":
+          "आपके बजट के अंदर है",
+
+        "gaming-match":
+          "गेमिंग के लिए उपयुक्त है",
+
+        "ai-match":
+          "AI/ML के काम के लिए उपयोगी है",
+
+        "coding-match":
+          "कोडिंग और डेवलपमेंट के लिए उपयुक्त है",
+
+        "camera-match":
+          "आपकी कैमरा आवश्यकता से मेल खाता है",
+
+        "music-match":
+          "म्यूजिक और ऑडियो के लिए उपयुक्त है",
+
+        "fitness-match":
+          "फिटनेस के लिए उपयोगी है",
+
+        "excellent-rating":
+          "बहुत अच्छी ग्राहक रेटिंग",
+
+        "high-rating":
+          "अच्छी रेटिंग वाला प्रोडक्ट",
+
+        "in-stock":
+          "अभी स्टॉक में उपलब्ध है",
+
+        "student-match":
+          "छात्रों के लिए उपयुक्त है",
+      },
+
+      or: {
+        "category-match":
+          "ଆପଣ ଚାହିଥିବା product category ସହିତ match କରୁଛି",
+
+        "within-budget":
+          "ଆପଣଙ୍କ budget ଭିତରେ ଅଛି",
+
+        "gaming-match":
+          "Gaming ପାଇଁ suitable",
+
+        "ai-match":
+          "AI/ML କାମ ପାଇଁ suitable",
+
+        "coding-match":
+          "Coding ଏବଂ development ପାଇଁ suitable",
+
+        "camera-match":
+          "ଆପଣଙ୍କ camera requirement ସହିତ match କରୁଛି",
+
+        "music-match":
+          "Music ଏବଂ audio ପାଇଁ suitable",
+
+        "fitness-match":
+          "Fitness ପାଇଁ useful",
+
+        "excellent-rating":
+          "ବହୁତ ଭଲ customer rating ଅଛି",
+
+        "high-rating":
+          "ଭଲ rating ଥିବା product",
+
+        "in-stock":
+          "ବର୍ତ୍ତମାନ stock ରେ available",
+
+        "student-match":
+          "Students ପାଇଁ suitable",
+      },
+    };
+
+    return (
+      reasonTranslations[
+        language
+      ]?.[reason] ||
+      reason
+    );
+  };
+
+  // =====================================================
+  // BUILD AI RESPONSE MESSAGE
+  // =====================================================
+
+  const buildRecommendationMessage = (
+    understanding,
+    rankedProducts
+  ) => {
+    const {
+      category,
+      budget,
+      purposes,
+    } = understanding;
+
+    if (
+      rankedProducts.length ===
+      0
+    ) {
+      return t.noResult;
     }
 
-    if (products.length === 0) {
-      setMessage(
-        "Products are not available right now."
-      );
+    const topProduct =
+      rankedProducts[0];
 
-      setResults([]);
+    const productName =
+      topProduct.name ||
+      "this product";
 
-      return;
+    // ===================================================
+    // ENGLISH
+    // ===================================================
+
+    if (language === "en") {
+      let response =
+        `I found ${rankedProducts.length} suitable product`;
+
+      if (
+        rankedProducts.length !== 1
+      ) {
+        response += "s";
+      }
+
+      response += ".";
+
+      if (category) {
+        response +=
+          ` I focused on ${category} products.`;
+      }
+
+      if (budget) {
+        response +=
+          ` Your target budget is ₹${formatPrice(
+            budget
+          )}.`;
+      }
+
+      if (
+        purposes.length > 0
+      ) {
+        response +=
+          ` I also considered ${purposes.join(
+            ", "
+          )}.`;
+      }
+
+      response +=
+        ` My top match is ${productName}.`;
+
+      return response;
     }
 
-    const category =
-      detectCategory(text);
+    // ===================================================
+    // HINDI
+    // ===================================================
 
-    const budget =
-      extractBudget(text);
+    if (language === "hi") {
+      let response =
+        `मुझे ${rankedProducts.length} उपयुक्त प्रोडक्ट मिले हैं।`;
 
-    const intent =
-      detectIntent(text);
+      if (category) {
+        response +=
+          ` मैंने ${category} कैटेगरी पर ध्यान दिया है।`;
+      }
 
-    let scoredProducts =
-      products.map((product) => ({
-        ...product,
+      if (budget) {
+        response +=
+          ` आपका बजट ₹${formatPrice(
+            budget
+          )} है।`;
+      }
 
-        aiScore: calculateScore(
-          product,
-          text,
-          category,
-          budget,
-          intent
-        ),
-      }));
+      if (
+        purposes.length > 0
+      ) {
+        response +=
+          ` मैंने ${purposes.join(
+            ", "
+          )} की आवश्यकता भी ध्यान में रखी है।`;
+      }
 
-    // -------------------------------------
-    // REMOVE OUT OF STOCK
-    // -------------------------------------
+      response +=
+        ` सबसे ऊपर ${productName} दिखाया गया है।`;
 
-    scoredProducts =
-      scoredProducts.filter(
+      return response;
+    }
+
+    // ===================================================
+    // ODIA
+    // ===================================================
+
+    let response =
+      `${rankedProducts.length}ଟି suitable product ମିଳିଛି।`;
+
+    if (category) {
+      response +=
+        ` ${category} category କୁ priority ଦିଆଯାଇଛି।`;
+    }
+
+    if (budget) {
+      response +=
+        ` ଆପଣଙ୍କ budget ₹${formatPrice(
+          budget
+        )}।`;
+    }
+
+    if (
+      purposes.length > 0
+    ) {
+      response +=
+        ` ${purposes.join(
+          ", "
+        )} requirement ମଧ୍ୟ consider କରାଯାଇଛି।`;
+    }
+
+    response +=
+      ` Top match ହେଉଛି ${productName}।`;
+
+    return response;
+  };
+
+  // =====================================================
+  // RANK PRODUCTS
+  // =====================================================
+
+  const rankProducts = (
+    understanding
+  ) => {
+    if (
+      !Array.isArray(products) ||
+      products.length === 0
+    ) {
+      return [];
+    }
+
+    let candidates =
+      [...products];
+
+    // ===================================================
+    // STRICT CATEGORY FILTER
+    // ===================================================
+
+    if (
+      understanding.category
+    ) {
+      candidates =
+        candidates.filter(
+          (product) =>
+            categoryMatches(
+              product,
+              understanding.category
+            )
+        );
+    }
+
+    // ===================================================
+    // REMOVE OUT OF STOCK PRODUCTS
+    // ===================================================
+
+    candidates =
+      candidates.filter(
         (product) =>
-          Number(
-            product.stock || 0
+          getProductStock(
+            product
           ) > 0
       );
 
-    // -------------------------------------
-    // CATEGORY FILTER
-    // -------------------------------------
+    // ===================================================
+    // STRICT BUDGET FILTER
+    // For "under", "budget", etc.
+    // ===================================================
 
-    if (category) {
-      const categoryProducts =
-        scoredProducts.filter(
+    if (
+      understanding.budget &&
+      understanding.budgetType ===
+        "maximum"
+    ) {
+      const withinBudget =
+        candidates.filter(
           (product) =>
-            product.category
-              ?.toLowerCase() ===
-            category.toLowerCase()
+            getProductPrice(
+              product
+            ) <=
+            understanding.budget
         );
 
+      // If products actually exist
+      // within budget, only show those.
       if (
-        categoryProducts.length > 0
+        withinBudget.length > 0
       ) {
-        scoredProducts =
-          categoryProducts;
+        candidates =
+          withinBudget;
       }
     }
 
-    // -------------------------------------
-    // BUDGET FILTER
-    // -------------------------------------
+    // ===================================================
+    // SCORE
+    // ===================================================
 
-    if (budget !== null) {
-      scoredProducts =
-        scoredProducts.filter(
-          (product) =>
-            Number(
-              product.price || 0
-            ) <= budget
-        );
-    }
+    const scored =
+      candidates.map(
+        (product) =>
+          scoreProduct(
+            product,
+            understanding
+          )
+      );
 
-    // -------------------------------------
+    // ===================================================
     // SORT
-    // -------------------------------------
+    // ===================================================
 
-    scoredProducts.sort(
+    scored.sort(
       (a, b) => {
         if (
-          intent.cheap &&
-          !intent.best
+          b.aiScore !==
+          a.aiScore
         ) {
           return (
-            Number(a.price || 0) -
-            Number(b.price || 0)
+            b.aiScore -
+            a.aiScore
           );
         }
 
         if (
-          intent.highlyRated
+          getProductRating(b) !==
+          getProductRating(a)
         ) {
           return (
-            Number(
-              b.rating || 0
-            ) -
-            Number(
-              a.rating || 0
-            )
+            getProductRating(b) -
+            getProductRating(a)
           );
         }
 
         return (
-          b.aiScore -
-          a.aiScore
+          getProductPrice(a) -
+          getProductPrice(b)
         );
       }
     );
 
-    const recommended =
-      scoredProducts.slice(0, 4);
+    // ===================================================
+    // TOP RESULTS
+    // ===================================================
 
-    setSubmittedQuery(text);
-
-    setResults(recommended);
-
-    if (
-      recommended.length === 0
-    ) {
-      if (
-        category &&
-        budget !== null
-      ) {
-        setMessage(
-          `I couldn't find an in-stock ${category.toLowerCase()} under ₹${formatPrice(
-            budget
-          )}. Try increasing your budget.`
-        );
-      } else {
-        setMessage(
-          "I couldn't find a suitable in-stock product for that request. Try changing your search."
-        );
-      }
-
-      return;
-    }
-
-    if (
-      category &&
-      budget !== null
-    ) {
-      setMessage(
-        `I found ${recommended.length} ${category.toLowerCase()} recommendation${
-          recommended.length === 1
-            ? ""
-            : "s"
-        } within your ₹${formatPrice(
-          budget
-        )} budget.`
-      );
-
-      return;
-    }
-
-    if (category) {
-      setMessage(
-        `Here ${
-          recommended.length === 1
-            ? "is"
-            : "are"
-        } ${recommended.length} ${category.toLowerCase()} recommendation${
-          recommended.length === 1
-            ? ""
-            : "s"
-        } for you.`
-      );
-
-      return;
-    }
-
-    setMessage(
-      `I found ${recommended.length} product recommendation${
-        recommended.length === 1
-          ? ""
-          : "s"
-      } for you.`
+    return scored.slice(
+      0,
+      4
     );
   };
 
-  // =====================================
-  // BEST RESULT
-  // =====================================
+  // =====================================================
+  // RUN AI SEARCH
+  // =====================================================
 
-  const bestProduct =
-    useMemo(() => {
-      if (
-        results.length === 0
-      ) {
-        return null;
-      }
+  const runSearch = (
+    searchText = query
+  ) => {
+    const cleanedQuery =
+      String(
+        searchText || ""
+      ).trim();
 
-      return results[0];
-    }, [results]);
+    if (!cleanedQuery) {
+      setResults([]);
+      setSubmittedQuery("");
+      setMessage(t.empty);
 
-  // =====================================
-  // CLEAR SEARCH
-  // =====================================
+      return;
+    }
+
+    if (
+      !Array.isArray(products) ||
+      products.length === 0
+    ) {
+      setResults([]);
+      setSubmittedQuery(
+        cleanedQuery
+      );
+      setMessage(
+        t.noProducts
+      );
+
+      return;
+    }
+
+    const understanding =
+      understandQuery(
+        cleanedQuery
+      );
+
+    const rankedProducts =
+      rankProducts(
+        understanding
+      );
+
+    setSubmittedQuery(
+      cleanedQuery
+    );
+
+    setResults(
+      rankedProducts
+    );
+
+    setMessage(
+      buildRecommendationMessage(
+        understanding,
+        rankedProducts
+      )
+    );
+  };
+
+  // =====================================================
+  // SUBMIT SEARCH
+  // =====================================================
+
+  const handleSubmit = (
+    event
+  ) => {
+    event.preventDefault();
+
+    runSearch(query);
+  };
+
+  // =====================================================
+  // QUICK SEARCH
+  // =====================================================
+
+  const handleQuickSearch = (
+    searchText
+  ) => {
+    setQuery(searchText);
+
+    runSearch(searchText);
+  };
+
+  // =====================================================
+  // CLEAR AI SEARCH
+  // =====================================================
 
   const clearSearch = () => {
     setQuery("");
@@ -712,135 +1819,645 @@ function AIShoppingAssistant({
     setMessage("");
   };
 
-  // =====================================
-  // UI
-  // =====================================
+  // =====================================================
+  // RESULT COUNT
+  // =====================================================
+
+  const resultCount =
+    useMemo(
+      () => results.length,
+      [results]
+    );
+      // =====================================================
+  // VOICE LANGUAGE
+  // =====================================================
+
+  const speechLanguageMap = {
+    en: "en-IN",
+    hi: "hi-IN",
+    or: "or-IN",
+  };
+
+  // =====================================================
+  // CHECK VOICE SUPPORT
+  // =====================================================
+
+  const getSpeechRecognition = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return (
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition ||
+      null
+    );
+  };
+
+  // =====================================================
+  // START VOICE SEARCH
+  // =====================================================
+
+  const startVoiceSearch = () => {
+    const SpeechRecognition =
+      getSpeechRecognition();
+
+    // Browser does not support speech recognition
+    if (!SpeechRecognition) {
+      setMessage(t.voiceUnsupported);
+      return;
+    }
+
+    // Prevent multiple recognition sessions
+    if (isListening) {
+      return;
+    }
+
+    try {
+      const recognition =
+        new SpeechRecognition();
+
+      // =================================================
+      // VOICE SETTINGS
+      // =================================================
+
+      recognition.lang =
+        speechLanguageMap[language] ||
+        "en-IN";
+
+      recognition.continuous = false;
+
+      recognition.interimResults = false;
+
+      recognition.maxAlternatives = 1;
+
+      // =================================================
+      // START LISTENING
+      // =================================================
+
+      recognition.onstart = () => {
+        setIsListening(true);
+
+        setMessage(
+          t.listening
+        );
+      };
+
+      // =================================================
+      // VOICE RESULT
+      // =================================================
+
+      recognition.onresult = (
+        event
+      ) => {
+        const transcript =
+          event.results?.[0]?.[0]
+            ?.transcript || "";
+
+        const cleanedTranscript =
+          transcript.trim();
+
+        if (!cleanedTranscript) {
+          setMessage(
+            t.voiceError
+          );
+
+          return;
+        }
+
+        // Put recognized speech
+        // into search input
+        setQuery(
+          cleanedTranscript
+        );
+
+        // Automatically search
+        runSearch(
+          cleanedTranscript
+        );
+      };
+
+      // =================================================
+      // VOICE ERROR
+      // =================================================
+
+      recognition.onerror = (
+        event
+      ) => {
+        console.error(
+          "Voice recognition error:",
+          event.error
+        );
+
+        setIsListening(false);
+
+        // User simply stopped/cancelled
+        if (
+          event.error ===
+            "aborted" ||
+          event.error ===
+            "no-speech"
+        ) {
+          setMessage(
+            t.voiceError
+          );
+
+          return;
+        }
+
+        // Microphone permission blocked
+        if (
+          event.error ===
+          "not-allowed" ||
+          event.error ===
+          "service-not-allowed"
+        ) {
+          if (
+            language === "hi"
+          ) {
+            setMessage(
+              "माइक्रोफोन की अनुमति नहीं मिली। कृपया ब्राउज़र में microphone permission Allow करें।"
+            );
+          } else if (
+            language === "or"
+          ) {
+            setMessage(
+              "Microphone permission ମିଳିଲା ନାହିଁ। Browser ରେ microphone permission Allow କରନ୍ତୁ।"
+            );
+          } else {
+            setMessage(
+              "Microphone permission was blocked. Please allow microphone access in your browser."
+            );
+          }
+
+          return;
+        }
+
+        setMessage(
+          t.voiceError
+        );
+      };
+
+      // =================================================
+      // VOICE ENDED
+      // =================================================
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      // =================================================
+      // START MICROPHONE
+      // =================================================
+
+      recognition.start();
+    } catch (error) {
+      console.error(
+        "Unable to start voice recognition:",
+        error
+      );
+
+      setIsListening(false);
+
+      setMessage(
+        t.voiceError
+      );
+    }
+  };
+
+  // =====================================================
+  // LANGUAGE-SPECIFIC QUICK SEARCHES
+  // =====================================================
+
+  const quickSearches = useMemo(() => {
+    if (language === "hi") {
+      return [
+        {
+          label:
+            "💻 AI/ML लैपटॉप",
+          query:
+            "मुझे AI ML के लिए अच्छा लैपटॉप चाहिए",
+        },
+
+        {
+          label:
+            "📱 सबसे अच्छा फोन",
+          query:
+            "मुझे सबसे अच्छा फोन चाहिए",
+        },
+
+        {
+          label:
+            "🎮 गेमिंग लैपटॉप",
+          query:
+            "मुझे गेमिंग लैपटॉप चाहिए",
+        },
+
+        {
+          label:
+            "🎧 हेडफोन",
+          query:
+            "मुझे अच्छे हेडफोन चाहिए",
+        },
+      ];
+    }
+
+    if (language === "or") {
+      return [
+        {
+          label:
+            "💻 AI/ML Laptop",
+          query:
+            "ମୋତେ AI ML ପାଇଁ ଭଲ laptop ଦରକାର",
+        },
+
+        {
+          label:
+            "📱 Best Phone",
+          query:
+            "ମୋତେ ଭଲ phone ଦରକାର",
+        },
+
+        {
+          label:
+            "🎮 Gaming Laptop",
+          query:
+            "ମୋତେ gaming ପାଇଁ laptop ଦରକାର",
+        },
+
+        {
+          label:
+            "🎧 Headphones",
+          query:
+            "ମୋତେ ଭଲ headphones ଦରକାର",
+        },
+      ];
+    }
+
+    return [
+      {
+        label:
+          "💻 AI/ML Laptop",
+        query:
+          "I need a laptop for AI and machine learning",
+      },
+
+      {
+        label:
+          "📱 Best Phone",
+        query:
+          "Show me the best smartphone",
+      },
+
+      {
+        label:
+          "🎮 Gaming Laptop",
+        query:
+          "I need a gaming laptop",
+      },
+
+      {
+        label:
+          "🎧 Headphones",
+        query:
+          "Show me good headphones",
+      },
+    ];
+  }, [language]);
+
+  // =====================================================
+  // VOICE BUTTON TITLE
+  // =====================================================
+
+  const getVoiceButtonTitle = () => {
+    if (isListening) {
+      if (language === "hi") {
+        return "सुन रहा हूँ...";
+      }
+
+      if (language === "or") {
+        return "ଶୁଣୁଛି...";
+      }
+
+      return "Listening...";
+    }
+
+    if (language === "hi") {
+      return "आवाज़ से खोजें";
+    }
+
+    if (language === "or") {
+      return "Voice ଦ୍ୱାରା search କରନ୍ତୁ";
+    }
+
+    return "Search by voice";
+  };
+
+  // =====================================================
+  // LANGUAGE NAME
+  // =====================================================
+
+  const getLanguageName = () => {
+    if (language === "hi") {
+      return "हिंदी";
+    }
+
+    if (language === "or") {
+      return "ଓଡ଼ିଆ";
+    }
+
+    return "English";
+  };
+
+  // =====================================================
+  // PRODUCT IMAGE ERROR
+  // =====================================================
+
+  const handleAIImageError = (
+    event
+  ) => {
+    const image =
+      event.currentTarget;
+
+    image.style.display =
+      "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display =
+        "flex";
+    }
+  };
+    // =====================================================
+  // FINAL UI
+  // =====================================================
 
   return (
     <section
-      className="ai-assistant-section"
-      id="ai-assistant"
+      className="ai-shopping-assistant"
+      id="ai-shopping"
     >
       <div className="ai-assistant-container">
 
-        {/* HEADER */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
         <div className="ai-assistant-header">
-
           <div className="ai-assistant-badge">
-            ✨ SHOPMIND AI
+            {t.badge}
           </div>
 
-          <h2>
-            Your AI Shopping Assistant
-          </h2>
+          <h2>{t.title}</h2>
 
-          <p>
-            Tell me what you need,
-            your budget and how you
-            plan to use it.
-          </p>
-
+          <p>{t.subtitle}</p>
         </div>
 
-        {/* SEARCH */}
+        {/* =================================================
+            LANGUAGE SELECTOR
+        ================================================= */}
 
-        <form
-          className="ai-assistant-search"
-          onSubmit={handleSearch}
-        >
-          <div className="ai-assistant-input-wrap">
+        <div className="ai-language-section">
+          <div className="ai-language-label">
+            <span>🌐</span>
 
             <span>
-              🤖
+              Language
+            </span>
+          </div>
+
+          <div className="ai-language-buttons">
+
+            <button
+              type="button"
+              className={
+                language === "en"
+                  ? "ai-language-btn active"
+                  : "ai-language-btn"
+              }
+              onClick={() => {
+                setLanguage("en");
+                setMessage("");
+              }}
+            >
+              English
+            </button>
+
+            <button
+              type="button"
+              className={
+                language === "hi"
+                  ? "ai-language-btn active"
+                  : "ai-language-btn"
+              }
+              onClick={() => {
+                setLanguage("hi");
+                setMessage("");
+              }}
+            >
+              हिंदी
+            </button>
+
+            <button
+              type="button"
+              className={
+                language === "or"
+                  ? "ai-language-btn active"
+                  : "ai-language-btn"
+              }
+              onClick={() => {
+                setLanguage("or");
+                setMessage("");
+              }}
+            >
+              ଓଡ଼ିଆ
+            </button>
+
+          </div>
+
+          <small className="ai-current-language">
+            🌍 {getLanguageName()}
+          </small>
+        </div>
+
+        {/* =================================================
+            SEARCH FORM
+        ================================================= */}
+
+        <form
+          className="ai-search-form"
+          onSubmit={handleSubmit}
+        >
+          <div className="ai-search-wrapper">
+
+            <span className="ai-search-icon">
+              🔎
             </span>
 
             <input
               type="text"
               value={query}
-              onChange={(e) =>
+              onChange={(event) => {
                 setQuery(
-                  e.target.value
-                )
+                  event.target.value
+                );
+
+                if (message) {
+                  setMessage("");
+                }
+              }}
+              placeholder={
+                t.placeholder
               }
-              placeholder="Example: I need a gaming laptop under ₹1 lakh"
+              className="ai-search-input"
+              autoComplete="off"
             />
+
+            {/* =============================================
+                MICROPHONE
+            ============================================= */}
+
+            <button
+              type="button"
+              className={
+                isListening
+                  ? "ai-mic-button listening"
+                  : "ai-mic-button"
+              }
+              onClick={
+                startVoiceSearch
+              }
+              title={
+                getVoiceButtonTitle()
+              }
+              aria-label={
+                getVoiceButtonTitle()
+              }
+              disabled={
+                isListening
+              }
+            >
+              {isListening
+                ? "🔴"
+                : "🎤"}
+            </button>
 
           </div>
 
           <button
             type="submit"
-            className="ai-assistant-search-btn"
+            className="ai-search-button"
+            disabled={
+              !query.trim() ||
+              isListening
+            }
           >
-            ✨ Find for Me
+            {isListening
+              ? t.listening
+              : t.searchButton}
           </button>
-
         </form>
 
-        {/* EXAMPLES */}
+        {/* =================================================
+            LISTENING STATUS
+        ================================================= */}
 
-        <div className="ai-example-queries">
+        {isListening && (
+          <div className="ai-listening-box">
 
-          <span>
-            Try:
-          </span>
-
-          <button
-            type="button"
-            onClick={() =>
-              setQuery(
-                "Laptop for AI/ML under ₹1 lakh"
-              )
-            }
-          >
-            AI/ML laptop
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setQuery(
-                "Best smartphone under ₹2 lakh"
-              )
-            }
-          >
-            Best phone
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setQuery(
-                "Gaming laptop under ₹1 lakh"
-              )
-            }
-          >
-            Gaming laptop
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setQuery(
-                "Best rated headphones"
-              )
-            }
-          >
-            Headphones
-          </button>
-
-        </div>
-
-        {/* MESSAGE */}
-
-        {message && (
-          <div className="ai-assistant-message">
-
-            <div className="ai-message-icon">
-              🤖
+            <div className="ai-listening-animation">
+              <span />
+              <span />
+              <span />
+              <span />
             </div>
 
             <div>
+              <strong>
+                {t.listening}
+              </strong>
+
+              <p>
+                {language === "or"
+                  ? "ଆପଣଙ୍କ requirement କୁହନ୍ତୁ..."
+                  : language === "hi"
+                  ? "अपनी आवश्यकता बोलिए..."
+                  : "Tell ShopMind what you need..."}
+              </p>
+            </div>
+
+          </div>
+        )}
+
+        {/* =================================================
+            QUICK SEARCHES
+        ================================================= */}
+
+        <div className="ai-quick-search">
+
+          <span className="ai-try-label">
+            {t.tryText}
+          </span>
+
+          <div className="ai-quick-buttons">
+
+            {quickSearches.map(
+              (item) => (
+                <button
+                  type="button"
+                  key={item.label}
+                  onClick={() =>
+                    handleQuickSearch(
+                      item.query
+                    )
+                  }
+                >
+                  {item.label}
+                </button>
+              )
+            )}
+
+          </div>
+
+        </div>
+
+        {/* =================================================
+            CLEAR SEARCH
+        ================================================= */}
+
+        {(query ||
+          submittedQuery ||
+          results.length > 0) && (
+          <div className="ai-clear-wrapper">
+
+            <button
+              type="button"
+              className="ai-clear-button"
+              onClick={
+                clearSearch
+              }
+            >
+              ✕ {t.clear}
+            </button>
+
+          </div>
+        )}
+
+        {/* =================================================
+            AI MESSAGE
+        ================================================= */}
+
+        {message && (
+          <div className="ai-response-box">
+
+            <div className="ai-response-icon">
+              🤖
+            </div>
+
+            <div className="ai-response-content">
+
               <strong>
                 ShopMind AI
               </strong>
@@ -849,243 +2466,349 @@ function AIShoppingAssistant({
                 {message}
               </p>
 
-              {submittedQuery && (
-                <small>
-                  Your request: "
-                  {submittedQuery}"
-                </small>
-              )}
             </div>
 
           </div>
         )}
 
-        {/* RESULTS */}
+        {/* =================================================
+            USER REQUEST
+        ================================================= */}
 
-        {results.length > 0 && (
-          <div className="ai-results">
+        {submittedQuery && (
+          <div className="ai-request-box">
 
-            <div className="ai-results-heading">
+            <span>
+              💬
+            </span>
 
-              <div>
-                <h3>
-                  ✨ AI Recommendations
-                </h3>
+            <div>
+              <small>
+                {t.yourRequest}
+              </small>
 
-                <p>
-                  Ranked using your
-                  request, budget,
-                  rating and
-                  availability.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="ai-clear-btn"
-                onClick={
-                  clearSearch
-                }
-              >
-                Clear
-              </button>
-
+              <strong>
+                {submittedQuery}
+              </strong>
             </div>
 
-            <div className="ai-results-grid">
+          </div>
+        )}
 
-              {results.map(
-                (product, index) => {
-                  const reasons =
-                    createReasons(
-                      product,
-                      detectCategory(
-                        submittedQuery
-                      ),
-                      extractBudget(
-                        submittedQuery
-                      ),
-                      detectIntent(
-                        submittedQuery
-                      )
-                    );
+        {/* =================================================
+            RECOMMENDATION HEADER
+        ================================================= */}
 
-                  const stock =
-                    Number(
-                      product.stock ||
-                        0
-                    );
+        {results.length > 0 && (
+          <div className="ai-results-header">
 
-                  return (
-                    <article
-                      className={`ai-result-card ${
-                        index === 0
-                          ? "ai-best-result"
-                          : ""
-                      }`}
-                      key={
-                        product._id
-                      }
-                    >
+            <div>
+              <h3>
+                {t.recommendations}
+              </h3>
 
-                      {/* BEST BADGE */}
+              <p>
+                {t.ranked}
+              </p>
+            </div>
 
-                      {index === 0 && (
-                        <div className="ai-best-badge">
-                          🏆 Best Match
-                        </div>
-                      )}
+            <span className="ai-result-count">
+              {resultCount}{" "}
+              {resultCount === 1
+                ? "product"
+                : "products"}
+            </span>
 
-                      {/* ICON */}
+          </div>
+        )}
 
-                      <div className="ai-result-icon">
-                        {product.icon ||
-                          "🛍️"}
+        {/* =================================================
+            RECOMMENDATION GRID
+        ================================================= */}
+
+        {results.length > 0 && (
+          <div className="ai-results-grid">
+
+            {results.map(
+              (product, index) => {
+                const productId =
+                  getProductId(
+                    product
+                  );
+
+                const stock =
+                  getProductStock(
+                    product
+                  );
+
+                const price =
+                  getProductPrice(
+                    product
+                  );
+
+                const rating =
+                  getProductRating(
+                    product
+                  );
+
+                return (
+                  <article
+                    className="ai-product-card"
+                    key={
+                      productId ||
+                      `${product.name}-${index}`
+                    }
+                  >
+
+                    {/* =====================================
+                        AI RANK
+                    ===================================== */}
+
+                    <div className="ai-product-rank">
+                      #{index + 1}
+                    </div>
+
+                    {index === 0 && (
+                      <div className="ai-best-match">
+                        ✨ Best Match
+                      </div>
+                    )}
+
+                    {/* =====================================
+                        PRODUCT IMAGE
+                    ===================================== */}
+
+                    <div className="ai-product-image-area">
+
+                      {product.image ? (
+                        <img
+                          src={
+                            product.image
+                          }
+                          alt={
+                            product.name
+                          }
+                          className="ai-product-image"
+                          onError={
+                            handleAIImageError
+                          }
+                        />
+                      ) : null}
+
+                      <div
+                        className="ai-product-image-fallback"
+                        style={{
+                          display:
+                            product.image
+                              ? "none"
+                              : "flex",
+                        }}
+                      >
+                        <span>
+                          {product.icon ||
+                            "🛍️"}
+                        </span>
                       </div>
 
-                      {/* CATEGORY */}
+                    </div>
 
-                      <span className="ai-result-category">
-                        {
-                          product.category
-                        }
+                    {/* =====================================
+                        PRODUCT DETAILS
+                    ===================================== */}
+
+                    <div className="ai-product-content">
+
+                      <span className="ai-product-category">
+                        {product.category ||
+                          "Product"}
                       </span>
-
-                      {/* NAME */}
 
                       <h3>
                         {product.name}
                       </h3>
 
-                      {/* RATING */}
-
-                      <div className="ai-result-rating">
+                      <div className="ai-product-rating">
                         ⭐{" "}
-                        {Number(
-                          product.rating ||
-                            0
-                        ).toFixed(
-                          1
-                        )}
+
+                        <strong>
+                          {rating.toFixed(
+                            1
+                          )}
+                        </strong>
+
+                        <span>
+                          / 5
+                        </span>
                       </div>
 
-                      {/* PRICE */}
+                      <p className="ai-product-description">
+                        {product.description ||
+                          "Recommended by ShopMind AI based on your shopping requirements."}
+                      </p>
 
-                      <div className="ai-result-price">
+                      <div className="ai-product-price">
                         ₹
                         {formatPrice(
-                          product.price
+                          price
                         )}
                       </div>
 
-                      {/* STOCK */}
+                      {/* ===================================
+                          STOCK
+                      =================================== */}
 
                       <div
                         className={
-                          stock <= 5
-                            ? "ai-stock ai-stock-low"
-                            : "ai-stock"
+                          stock > 0
+                            ? "ai-stock in-stock"
+                            : "ai-stock out-stock"
                         }
                       >
-                        {stock <= 5
-                          ? `🟠 Only ${stock} left`
-                          : `🟢 In Stock (${stock})`}
+                        {stock > 0
+                          ? `✓ In Stock (${stock})`
+                          : "Out of Stock"}
                       </div>
 
-                      {/* DESCRIPTION */}
+                      {/* ===================================
+                          MATCH REASONS
+                      =================================== */}
 
-                      <p className="ai-result-description">
-                        {
-                          product.description
-                        }
-                      </p>
+                      {product.aiReasons &&
+                        product
+                          .aiReasons
+                          .length >
+                          0 && (
+                          <div className="ai-match-reasons">
 
-                      {/* WHY */}
+                            <strong>
+                              {t.whyMatch}
+                            </strong>
 
-                      <div className="ai-reasons">
+                            <ul>
+                              {product.aiReasons
+                                .slice(
+                                  0,
+                                  4
+                                )
+                                .map(
+                                  (
+                                    reason
+                                  ) => (
+                                    <li
+                                      key={
+                                        reason
+                                      }
+                                    >
+                                      ✓{" "}
+                                      {getReasonText(
+                                        reason
+                                      )}
+                                    </li>
+                                  )
+                                )}
+                            </ul>
 
-                        <strong>
-                          Why this
-                          matches:
-                        </strong>
-
-                        {reasons.map(
-                          (
-                            reason,
-                            reasonIndex
-                          ) => (
-                            <div
-                              key={
-                                reasonIndex
-                              }
-                            >
-                              ✓ {reason}
-                            </div>
-                          )
+                          </div>
                         )}
 
+                      {/* ===================================
+                          AI MATCH SCORE
+                      =================================== */}
+
+                      <div className="ai-score-box">
+
+                        <span>
+                          AI Match
+                        </span>
+
+                        <strong>
+                          {Math.max(
+                            0,
+                            Math.round(
+                              product.aiScore
+                            )
+                          )}
+                        </strong>
+
                       </div>
 
-                      {/* ACTIONS */}
+                      {/* ===================================
+                          ACTION BUTTONS
+                      =================================== */}
 
-                      <div className="ai-result-actions">
+                      <div className="ai-product-actions">
 
                         <button
                           type="button"
-                          className="ai-view-btn"
-                          onClick={() =>
-                            onViewProduct?.(
-                              product
-                            )
-                          }
+                          className="ai-view-button"
+                          onClick={() => {
+                            if (
+                              typeof onViewProduct ===
+                              "function"
+                            ) {
+                              onViewProduct(
+                                product
+                              );
+                            }
+                          }}
                         >
-                          View Details
+                          👁️{" "}
+                          {t.viewDetails}
                         </button>
 
                         <button
                           type="button"
-                          className="ai-cart-btn"
-                          onClick={() =>
-                            onAddToCart?.(
-                              product
-                            )
+                          className="ai-cart-button"
+                          disabled={
+                            stock <= 0
                           }
+                          onClick={() => {
+                            if (
+                              typeof onAddToCart ===
+                              "function"
+                            ) {
+                              onAddToCart(
+                                product
+                              );
+                            }
+                          }}
                         >
-                          🛒 Add to Cart
+                          {stock <= 0
+                            ? "Out of Stock"
+                            : t.addToCart}
                         </button>
 
                       </div>
 
-                    </article>
-                  );
-                }
-              )}
+                    </div>
 
-            </div>
-
-            {bestProduct && (
-              <div className="ai-best-summary">
-                <span>
-                  🤖
-                </span>
-
-                <p>
-                  <strong>
-                    ShopMind's top
-                    recommendation:
-                  </strong>{" "}
-                  {bestProduct.name} at
-                  ₹
-                  {formatPrice(
-                    bestProduct.price
-                  )}
-                  .
-                </p>
-              </div>
+                  </article>
+                );
+              }
             )}
 
           </div>
         )}
+
+        {/* =================================================
+            MULTILINGUAL INFORMATION
+        ================================================= */}
+
+        <div className="ai-language-info">
+
+          <span>
+            🌐
+          </span>
+
+          <p>
+            {language === "or"
+              ? "ShopMind AI ସହିତ ଓଡ଼ିଆରେ type କିମ୍ବା voice ରେ ଆପଣଙ୍କ shopping requirement କୁହନ୍ତୁ।"
+              : language === "hi"
+              ? "ShopMind AI को हिंदी में टाइप करके या आवाज़ से अपनी खरीदारी की आवश्यकता बताएं।"
+              : "Type or use your voice to tell ShopMind AI what you're looking for."}
+          </p>
+
+        </div>
 
       </div>
     </section>

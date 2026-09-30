@@ -20,6 +20,17 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // =====================================
+    // PRODUCT IMAGE
+    // =====================================
+
+    image: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // Emoji fallback when no image exists
     icon: {
       type: String,
       default: "🛍️",
@@ -48,8 +59,7 @@ const productSchema = new mongoose.Schema(
       min: 0,
       validate: {
         validator: Number.isInteger,
-        message:
-          "Stock must be a whole number.",
+        message: "Stock must be a whole number.",
       },
     },
   },

@@ -1,280 +1,936 @@
-import { useEffect, useMemo, useState } from "react";
-import API_URL from "./api";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import "./App.css";
 
+import LoginModal from "./LoginModal";
+import AuthModal from "./AuthModal";
+import CartModal from "./CartModal";
+import CheckoutModal from "./CheckoutModal";
+import MyOrdersModal from "./MyOrdersModal";
+
+import AdminPanel from "./AdminPanel";
+import AdminDashboard from "./AdminDashboard";
+import AdminOrders from "./AdminOrders";
+
+import WishlistModal from "./WishlistModal";
+import AIShoppingAssistant from "./AIShoppingAssistant";
+import ProductComparison from "./ProductComparison";
+import ReviewsSection from "./ReviewsSection";
+import RecentlyViewed from "./RecentlyViewed";
+import RecommendedProducts from "./RecommendedProducts";
+
+
+/* =================================================
+   API
+================================================= */
+
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000";
+
+
+/* =================================================
+   APP
+================================================= */
+
 function App() {
-  // =====================================================
-  // PRODUCTS
-  // =====================================================
 
-  const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState("");
+  /* =================================================
+     AUTHENTICATION
+  ================================================= */
 
-  // =====================================================
-  // SEARCH / FILTER
-  // =====================================================
+  const [user, setUser] =
+    useState(() => {
+      try {
+        const savedUser =
+          localStorage.getItem(
+            "shopmind-user"
+          );
 
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
+        return savedUser
+          ? JSON.parse(savedUser)
+          : null;
 
-  // =====================================================
-  // CART
-  // =====================================================
+      } catch (error) {
 
-  const [cart, setCart] = useState(() => {
+        console.error(
+          "Could not load saved user:",
+          error
+        );
+
+        return null;
+      }
+    });
+
+
+  const [token, setToken] =
+    useState(
+      () =>
+        localStorage.getItem(
+          "token"
+        ) || ""
+    );
+
+
+  const [
+    showLogin,
+    setShowLogin,
+  ] = useState(false);
+
+
+  const [
+    showAuth,
+    setShowAuth,
+  ] = useState(false);
+
+
+  /* =================================================
+     PRODUCTS
+  ================================================= */
+
+  const [
+    products,
+    setProducts,
+  ] = useState([]);
+
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+
+  const [
+    selectedProduct,
+    setSelectedProduct,
+  ] = useState(null);
+
+
+  /* =================================================
+     SEARCH / FILTER
+  ================================================= */
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+
+  const [
+    selectedCategory,
+    setSelectedCategory,
+  ] = useState("All");
+
+
+  const [
+    sortOption,
+    setSortOption,
+  ] = useState("default");
+
+
+  /* =================================================
+     CART
+  ================================================= */
+
+  const [
+    cart,
+    setCart,
+  ] = useState(() => {
+
     try {
-      const saved = localStorage.getItem("shopmindCart");
 
-      return saved ? JSON.parse(saved) : [];
+      const savedCart =
+        localStorage.getItem(
+          "shopmind-cart"
+        );
+
+      return savedCart
+        ? JSON.parse(savedCart)
+        : [];
+
     } catch (error) {
-      console.error("Could not load cart:", error);
+
+      console.error(
+        "Could not load cart:",
+        error
+      );
 
       return [];
     }
+
   });
 
-  const [showCart, setShowCart] = useState(false);
 
-  // =====================================================
-  // SELECTED PRODUCT
-  // =====================================================
+  const [
+    showCart,
+    setShowCart,
+  ] = useState(false);
 
-  const [selectedProduct, setSelectedProduct] =
-    useState(null);
 
-  // =====================================================
-  // AI CHAT
-  // =====================================================
+  const [
+    showCheckout,
+    setShowCheckout,
+  ] = useState(false);
 
-  const [aiMessage, setAiMessage] = useState("");
 
-  const [aiMessages, setAiMessages] = useState([
-    {
-      sender: "ai",
-      text:
-        "Hi! 👋 I'm ShopMind AI. Tell me what you're looking for and I'll help you find it.",
-    },
-  ]);
+  /* =================================================
+     ORDERS
+  ================================================= */
 
-  // =====================================================
-  // LOAD PRODUCTS
-  // =====================================================
+  const [
+    showOrders,
+    setShowOrders,
+  ] = useState(false);
 
-  const loadProducts = async () => {
+
+  /* =================================================
+     WISHLIST
+  ================================================= */
+
+  const [
+    wishlist,
+    setWishlist,
+  ] = useState(() => {
+
     try {
-      setProductsLoading(true);
-      setProductsError("");
 
-      console.log("Loading products from:", API_URL);
-
-      const response = await fetch(
-        `${API_URL}/api/products`
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Server returned status ${response.status}`
+      const savedWishlist =
+        localStorage.getItem(
+          "shopmind-wishlist"
         );
-      }
 
-      const data = await response.json();
+      return savedWishlist
+        ? JSON.parse(
+            savedWishlist
+          )
+        : [];
 
-      console.log("Products API response:", data);
-
-      if (!data.success) {
-        throw new Error(
-          data.message || "Could not load products."
-        );
-      }
-
-      setProducts(data.products || []);
     } catch (error) {
+
       console.error(
-        "Product loading error:",
+        "Could not load wishlist:",
         error
       );
 
-      setProductsError(
-        "Could not load products. Please try again."
-      );
-    } finally {
-      setProductsLoading(false);
+      return [];
     }
-  };
+
+  });
+
+
+  const [
+    showWishlist,
+    setShowWishlist,
+  ] = useState(false);
+
+
+  /* =================================================
+     COMPARE
+  ================================================= */
+
+  const [
+    compareProducts,
+    setCompareProducts,
+  ] = useState([]);
+
+
+  const [
+    showCompare,
+    setShowCompare,
+  ] = useState(false);
+
+
+  /* =================================================
+     ADMIN
+  ================================================= */
+
+  const [
+    showAdminDashboard,
+    setShowAdminDashboard,
+  ] = useState(false);
+
+
+  const [
+    showAdminPanel,
+    setShowAdminPanel,
+  ] = useState(false);
+
+
+  const [
+    showAdminOrders,
+    setShowAdminOrders,
+  ] = useState(false);
+
+
+  /* =================================================
+     AI SHOPPING ASSISTANT
+  ================================================= */
+
+  const [
+    showAIAssistant,
+    setShowAIAssistant,
+  ] = useState(false);
+
+
+  /* =================================================
+     RECENTLY VIEWED
+  ================================================= */
+
+  const [
+    recentlyViewed,
+    setRecentlyViewed,
+  ] = useState(() => {
+
+    try {
+
+      const saved =
+        localStorage.getItem(
+          "shopmind-recently-viewed"
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : [];
+
+    } catch (error) {
+
+      console.error(
+        "Could not load recently viewed:",
+        error
+      );
+
+      return [];
+    }
+
+  });
+
+
+  /* =================================================
+     NOTIFICATION
+  ================================================= */
+
+  const [
+    notification,
+    setNotification,
+  ] = useState("");
+
+
+  /* =================================================
+     ANIMATED NAVBAR
+  ================================================= */
+
+  const [
+    navbarScrolled,
+    setNavbarScrolled,
+  ] = useState(false);
+
 
   useEffect(() => {
-    loadProducts();
+
+    const handleNavbarScroll =
+      () => {
+
+        setNavbarScrolled(
+          window.scrollY > 30
+        );
+
+      };
+
+
+    handleNavbarScroll();
+
+
+    window.addEventListener(
+      "scroll",
+      handleNavbarScroll,
+      {
+        passive: true,
+      }
+    );
+
+
+    return () => {
+
+      window.removeEventListener(
+        "scroll",
+        handleNavbarScroll
+      );
+
+    };
+
   }, []);
 
-  // =====================================================
-  // SAVE CART
-  // =====================================================
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "shopmindCart",
-        JSON.stringify(cart)
-      );
-    } catch (error) {
-      console.error(
-        "Could not save cart:",
-        error
-      );
-    }
-  }, [cart]);
+  /* =================================================
+     HELPERS
+  ================================================= */
 
-  // =====================================================
-  // CATEGORIES
-  // =====================================================
+  const getProductId = (
+    product
+  ) => {
 
-  const categories = [
-    "All",
-    "Laptop",
-    "Smartphone",
-    "Headphones",
-    "Smartwatch",
-  ];
-
-  // =====================================================
-  // FILTER PRODUCTS
-  // =====================================================
-
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
-
-    if (selectedCategory !== "All") {
-      result = result.filter(
-        (product) =>
-          product.category === selectedCategory
-      );
-    }
-
-    const searchText = search
-      .trim()
-      .toLowerCase();
-
-    if (searchText) {
-      result = result.filter((product) => {
-        const name =
-          product.name?.toLowerCase() || "";
-
-        const category =
-          product.category?.toLowerCase() || "";
-
-        const description =
-          product.description?.toLowerCase() || "";
-
-        return (
-          name.includes(searchText) ||
-          category.includes(searchText) ||
-          description.includes(searchText)
-        );
-      });
-    }
-
-    return result;
-  }, [
-    products,
-    search,
-    selectedCategory,
-  ]);
-
-  // =====================================================
-  // STOCK HELPERS
-  // =====================================================
-
-  const getStock = (product) => {
-    return Math.max(
-      Number(product?.stock ?? 0),
-      0
+    return (
+      product?._id ||
+      product?.id ||
+      product?.productId ||
+      product?.name
     );
+
   };
 
-  const getStockLabel = (product) => {
-    const stock = getStock(product);
+
+  const getProductStock = (
+    product
+  ) => {
+
+    const stock =
+      Number(
+        product?.stock
+      );
+
+
+    if (
+      Number.isNaN(stock)
+    ) {
+      return 0;
+    }
+
+
+    return stock;
+
+  };
+
+
+  const getStockClass = (
+    product
+  ) => {
+
+    const stock =
+      getProductStock(
+        product
+      );
+
 
     if (stock <= 0) {
-      return "Out of Stock";
+      return "stock-out";
     }
+
 
     if (stock <= 5) {
-      return `Only ${stock} Left`;
+      return "stock-low";
     }
 
-    return "In Stock";
+
+    return "stock-available";
+
   };
 
-  // =====================================================
-  // FORMAT PRICE
-  // =====================================================
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat(
-      "en-IN",
-      {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-      }
-    ).format(Number(price || 0));
+  const formatPrice = (
+    price
+  ) => {
+
+    const value =
+      Number(
+        price || 0
+      );
+
+
+    return value.toLocaleString(
+      "en-IN"
+    );
+
   };
 
-  // =====================================================
-  // SEARCH
-  // =====================================================
 
-  const handleSearch = (event) => {
-    event.preventDefault();
+  const showNotification = (
+    message
+  ) => {
 
-    document
-      .getElementById("products")
-      ?.scrollIntoView({
-        behavior: "smooth",
-      });
+    setNotification(
+      message
+    );
+
+
+    window.setTimeout(
+      () => {
+
+        setNotification("");
+
+      },
+      2500
+    );
+
   };
 
-  // =====================================================
-  // ADD TO CART
-  // =====================================================
 
-  const addToCart = (product) => {
-    const availableStock =
-      getStock(product);
+  /* =================================================
+     LOCAL STORAGE
+  ================================================= */
 
-    if (availableStock <= 0) {
-      alert(
-        `${product.name} is currently out of stock.`
+  useEffect(() => {
+
+    localStorage.setItem(
+      "shopmind-cart",
+      JSON.stringify(cart)
+    );
+
+  }, [cart]);
+
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "shopmind-wishlist",
+      JSON.stringify(
+        wishlist
+      )
+    );
+
+  }, [wishlist]);
+
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "shopmind-recently-viewed",
+      JSON.stringify(
+        recentlyViewed
+      )
+    );
+
+  }, [recentlyViewed]);
+
+
+  useEffect(() => {
+
+    if (user) {
+
+      localStorage.setItem(
+        "shopmind-user",
+        JSON.stringify(user)
+      );
+
+    } else {
+
+      localStorage.removeItem(
+        "shopmind-user"
+      );
+
+    }
+
+  }, [user]);
+
+
+  /* =================================================
+     LOAD CURRENT USER
+  ================================================= */
+
+  useEffect(() => {
+
+    if (!token) {
+
+      setUser(null);
+
+      localStorage.removeItem(
+        "shopmind-user"
       );
 
       return;
     }
 
-    setCart((currentCart) => {
-      const existingProduct =
-        currentCart.find(
-          (item) =>
-            item._id === product._id
+
+    const loadCurrentUser =
+      async () => {
+
+        try {
+
+          const response =
+            await fetch(
+              `${API_URL}/api/auth/me`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+
+          if (!response.ok) {
+
+            throw new Error(
+              "Could not load user."
+            );
+
+          }
+
+
+          const data =
+            await response.json();
+
+
+          const currentUser =
+            data.user ||
+            data;
+
+
+          setUser(
+            currentUser
+          );
+
+
+          localStorage.setItem(
+            "shopmind-user",
+            JSON.stringify(
+              currentUser
+            )
+          );
+
+        } catch (error) {
+
+          console.error(
+            "User load error:",
+            error
+          );
+
+
+          const savedUser =
+            localStorage.getItem(
+              "shopmind-user"
+            );
+
+
+          if (!savedUser) {
+
+            localStorage.removeItem(
+              "token"
+            );
+
+            setToken("");
+
+            setUser(null);
+
+          }
+
+        }
+
+      };
+
+
+    loadCurrentUser();
+
+  }, [token]);
+
+
+  /* =================================================
+     LOAD PRODUCTS
+  ================================================= */
+
+  const loadProducts =
+    async () => {
+
+      try {
+
+        setLoading(true);
+
+        setError("");
+
+
+        const response =
+          await fetch(
+            `${API_URL}/api/products`
+          );
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            "Unable to load products."
+          );
+
+        }
+
+
+        const data =
+          await response.json();
+
+
+        const productList =
+          Array.isArray(data)
+            ? data
+            : data.products || [];
+
+
+        setProducts(
+          productList
         );
 
-      if (existingProduct) {
+      } catch (error) {
+
+        console.error(
+          "Product loading error:",
+          error
+        );
+
+
+        setError(
+          "Unable to load products. Please make sure the backend server is running."
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+
+  useEffect(() => {
+
+    loadProducts();
+
+  }, []);
+
+
+  /* =================================================
+     AUTH SUCCESS
+  ================================================= */
+
+  const handleAuthSuccess = (
+    authData
+  ) => {
+
+    console.log(
+      "Authentication successful:",
+      authData
+    );
+
+
+    const newToken =
+      authData?.token ||
+      authData?.accessToken ||
+      "";
+
+
+    const newUser =
+      authData?.user ||
+      authData?.data?.user ||
+      null;
+
+
+    if (newToken) {
+
+      localStorage.setItem(
+        "token",
+        newToken
+      );
+
+      setToken(
+        newToken
+      );
+
+    }
+
+
+    if (newUser) {
+
+      setUser(
+        newUser
+      );
+
+
+      localStorage.setItem(
+        "shopmind-user",
+        JSON.stringify(
+          newUser
+        )
+      );
+
+    }
+
+
+    setShowLogin(false);
+
+    setShowAuth(false);
+
+
+    showNotification(
+      `Welcome ${
+        newUser?.name ||
+        newUser?.username ||
+        "back"
+      }!`
+    );
+
+  };
+
+
+  /* =================================================
+     LOGOUT
+  ================================================= */
+
+  const handleLogout = () => {
+
+    localStorage.removeItem(
+      "token"
+    );
+
+    localStorage.removeItem(
+      "shopmind-user"
+    );
+
+
+    setToken("");
+
+    setUser(null);
+
+
+    setShowLogin(false);
+
+    setShowAuth(false);
+
+    setShowCart(false);
+
+    setShowCheckout(false);
+
+    setShowOrders(false);
+
+    setShowWishlist(false);
+
+    setShowCompare(false);
+
+
+    setShowAdminDashboard(
+      false
+    );
+
+    setShowAdminPanel(
+      false
+    );
+
+    setShowAdminOrders(
+      false
+    );
+
+
+    showNotification(
+      "Logged out successfully."
+    );
+
+  };
+
+
+  /* =================================================
+     PRODUCT DETAILS
+  ================================================= */
+
+  const openProduct = (
+    product
+  ) => {
+
+    if (!product) {
+      return;
+    }
+
+
+    setSelectedProduct(
+      product
+    );
+
+
+    setRecentlyViewed(
+      (current) => {
+
+        const productId =
+          getProductId(
+            product
+          );
+
+
+        const filtered =
+          current.filter(
+            (item) =>
+              getProductId(
+                item
+              ) !== productId
+          );
+
+
+        return [
+          product,
+          ...filtered,
+        ].slice(
+          0,
+          8
+        );
+
+      }
+    );
+
+  };
+
+
+  const closeProduct = () => {
+
+    setSelectedProduct(
+      null
+    );
+
+  };
+    /* =================================================
+     CART HELPERS
+  ================================================= */
+
+  const addToCart = (product) => {
+    if (!product) {
+      return;
+    }
+
+    const stock =
+      getProductStock(product);
+
+    if (stock <= 0) {
+      showNotification(
+        "This product is out of stock."
+      );
+
+      return;
+    }
+
+    const productId =
+      getProductId(product);
+
+    setCart((currentCart) => {
+      const existingItem =
+        currentCart.find(
+          (item) =>
+            getProductId(item) ===
+            productId
+        );
+
+      if (existingItem) {
         const currentQuantity =
           Number(
-            existingProduct.quantity
-          ) || 1;
+            existingItem.quantity || 1
+          );
 
         if (
-          currentQuantity >=
-          availableStock
+          currentQuantity >= stock
         ) {
-          alert(
-            `Only ${availableStock} unit${
-              availableStock === 1
-                ? ""
-                : "s"
-            } of ${product.name} available.`
+          showNotification(
+            "Maximum available stock reached."
           );
 
           return currentCart;
@@ -282,7 +938,8 @@ function App() {
 
         return currentCart.map(
           (item) =>
-            item._id === product._id
+            getProductId(item) ===
+            productId
               ? {
                   ...item,
                   quantity:
@@ -300,315 +957,1503 @@ function App() {
         },
       ];
     });
+
+    showNotification(
+      `${product.name} added to cart.`
+    );
   };
 
-  // =====================================================
-  // REMOVE FROM CART
-  // =====================================================
 
-  const removeFromCart = (
+  const increaseCartItem = (
+    productId
+  ) => {
+    setCart((currentCart) =>
+      currentCart.map(
+        (item) => {
+          if (
+            getProductId(item) !==
+            productId
+          ) {
+            return item;
+          }
+
+          const stock =
+            getProductStock(item);
+
+          const quantity =
+            Number(
+              item.quantity || 1
+            );
+
+          if (
+            quantity >= stock
+          ) {
+            showNotification(
+              "Maximum available stock reached."
+            );
+
+            return item;
+          }
+
+          return {
+            ...item,
+            quantity:
+              quantity + 1,
+          };
+        }
+      )
+    );
+  };
+
+
+  const decreaseCartItem = (
+    productId
+  ) => {
+    setCart((currentCart) =>
+      currentCart
+        .map((item) => {
+          if (
+            getProductId(item) !==
+            productId
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+            quantity:
+              Number(
+                item.quantity || 1
+              ) - 1,
+          };
+        })
+        .filter(
+          (item) =>
+            Number(
+              item.quantity || 0
+            ) > 0
+        )
+    );
+  };
+
+
+  const removeCartItem = (
     productId
   ) => {
     setCart((currentCart) =>
       currentCart.filter(
         (item) =>
-          item._id !== productId
+          getProductId(item) !==
+          productId
       )
     );
-  };
 
-  // =====================================================
-  // CHANGE QUANTITY
-  // =====================================================
-
-  const changeQuantity = (
-    productId,
-    amount
-  ) => {
-    setCart((currentCart) =>
-      currentCart.map((item) => {
-        if (item._id !== productId) {
-          return item;
-        }
-
-        const stock =
-          getStock(item);
-
-        const newQuantity =
-          Number(
-            item.quantity || 1
-          ) + amount;
-
-        if (newQuantity < 1) {
-          return item;
-        }
-
-        if (newQuantity > stock) {
-          alert(
-            `Only ${stock} units available.`
-          );
-
-          return item;
-        }
-
-        return {
-          ...item,
-          quantity: newQuantity,
-        };
-      })
+    showNotification(
+      "Product removed from cart."
     );
   };
 
-  // =====================================================
-  // CART TOTALS
-  // =====================================================
 
-  const cartCount = cart.reduce(
-    (total, item) =>
-      total +
-      Number(item.quantity || 1),
-    0
-  );
+  const clearCart = () => {
+    setCart([]);
 
-  const cartTotal = cart.reduce(
-    (total, item) =>
-      total +
-      Number(item.price || 0) *
-        Number(item.quantity || 1),
-    0
-  );
+    showNotification(
+      "Cart cleared."
+    );
+  };
 
-  // =====================================================
-  // SIMPLE AI ASSISTANT
-  // =====================================================
 
-  const handleAIChat = (event) => {
-    event.preventDefault();
+  /* =================================================
+     CHECKOUT
+  ================================================= */
 
-    const message =
-      aiMessage.trim();
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      showNotification(
+        "Your cart is empty."
+      );
 
-    if (!message) {
       return;
     }
 
-    setAiMessages(
-      (currentMessages) => [
-        ...currentMessages,
-        {
-          sender: "user",
-          text: message,
-        },
-      ]
-    );
+    if (!user || !token) {
+      setShowCart(false);
 
-    const lowerMessage =
-      message.toLowerCase();
+      setShowAuth(true);
 
-    let matchingProducts =
-      products.filter((product) => {
-        const productText = `
-          ${product.name || ""}
-          ${product.category || ""}
-          ${product.description || ""}
-        `.toLowerCase();
-
-        return lowerMessage
-          .split(/\s+/)
-          .some(
-            (word) =>
-              word.length > 2 &&
-              productText.includes(word)
-          );
-      });
-
-    // Price detection:
-    // Example: "laptop under 70000"
-    const numbers =
-      message.match(/\d+/g);
-
-    if (
-      numbers &&
-      lowerMessage.includes("under")
-    ) {
-      const budget =
-        Number(
-          numbers.join("")
-        );
-
-      if (
-        Number.isFinite(budget)
-      ) {
-        matchingProducts =
-          products.filter(
-            (product) =>
-              Number(
-                product.price
-              ) <= budget
-          );
-      }
-    }
-
-    let reply;
-
-    if (
-      matchingProducts.length > 0
-    ) {
-      const suggestions =
-        matchingProducts
-          .slice(0, 3)
-          .map(
-            (product) =>
-              `• ${product.name} — ${formatPrice(
-                product.price
-              )}`
-          )
-          .join("\n");
-
-      reply =
-        `Here are some products you may like:\n${suggestions}`;
-    } else {
-      reply =
-        "I couldn't find an exact match. Try asking for a laptop, smartphone, headphones or smartwatch, and you can also mention your budget.";
-    }
-
-    window.setTimeout(() => {
-      setAiMessages(
-        (currentMessages) => [
-          ...currentMessages,
-          {
-            sender: "ai",
-            text: reply,
-          },
-        ]
+      showNotification(
+        "Please login before checkout."
       );
-    }, 300);
 
-    setAiMessage("");
+      return;
+    }
+
+    setShowCart(false);
+
+    setShowCheckout(true);
   };
 
-  // =====================================================
-  // UI
-  // =====================================================
+
+  const handleOrderSuccess = () => {
+    setCart([]);
+
+    setShowCheckout(false);
+
+    showNotification(
+      "Order placed successfully."
+    );
+
+    loadProducts();
+  };
+
+
+  /* =================================================
+     WISHLIST
+  ================================================= */
+
+  const isWishlisted = (
+    productId
+  ) => {
+    return wishlist.some(
+      (item) =>
+        getProductId(item) ===
+        productId
+    );
+  };
+
+
+  const toggleWishlist = (
+    product
+  ) => {
+    if (!product) {
+      return;
+    }
+
+    const productId =
+      getProductId(product);
+
+    setWishlist(
+      (currentWishlist) => {
+        const exists =
+          currentWishlist.some(
+            (item) =>
+              getProductId(item) ===
+              productId
+          );
+
+        if (exists) {
+          showNotification(
+            `${product.name} removed from wishlist.`
+          );
+
+          return currentWishlist.filter(
+            (item) =>
+              getProductId(item) !==
+              productId
+          );
+        }
+
+        showNotification(
+          `${product.name} added to wishlist.`
+        );
+
+        return [
+          ...currentWishlist,
+          product,
+        ];
+      }
+    );
+  };
+
+
+  /* =================================================
+     COMPARE
+  ================================================= */
+
+  const toggleCompare = (
+    product
+  ) => {
+    if (!product) {
+      return;
+    }
+
+    const productId =
+      getProductId(product);
+
+    setCompareProducts(
+      (current) => {
+        const exists =
+          current.some(
+            (item) =>
+              getProductId(item) ===
+              productId
+          );
+
+        if (exists) {
+          showNotification(
+            `${product.name} removed from compare.`
+          );
+
+          return current.filter(
+            (item) =>
+              getProductId(item) !==
+              productId
+          );
+        }
+
+        if (
+          current.length >= 4
+        ) {
+          showNotification(
+            "You can compare up to 4 products."
+          );
+
+          return current;
+        }
+
+        showNotification(
+          `${product.name} added to compare.`
+        );
+
+        return [
+          ...current,
+          product,
+        ];
+      }
+    );
+  };
+
+
+  const isComparing = (
+    product
+  ) => {
+    const productId =
+      getProductId(product);
+
+    return compareProducts.some(
+      (item) =>
+        getProductId(item) ===
+        productId
+    );
+  };
+
+
+  /* =================================================
+     ADMIN PRODUCT CALLBACKS
+  ================================================= */
+
+  const handleProductAdded = (
+    product
+  ) => {
+    if (product) {
+      setProducts(
+        (currentProducts) => [
+          product,
+          ...currentProducts,
+        ]
+      );
+    } else {
+      loadProducts();
+    }
+
+    showNotification(
+      "Product added successfully."
+    );
+  };
+
+
+  const handleProductUpdated = (
+    updatedProduct
+  ) => {
+    if (!updatedProduct) {
+      loadProducts();
+
+      return;
+    }
+
+    const updatedId =
+      getProductId(
+        updatedProduct
+      );
+
+
+    setProducts(
+      (currentProducts) =>
+        currentProducts.map(
+          (product) =>
+            getProductId(
+              product
+            ) === updatedId
+              ? updatedProduct
+              : product
+        )
+    );
+
+
+    setCart(
+      (currentCart) =>
+        currentCart.map(
+          (product) =>
+            getProductId(
+              product
+            ) === updatedId
+              ? {
+                  ...updatedProduct,
+                  quantity:
+                    product.quantity ||
+                    1,
+                }
+              : product
+        )
+    );
+
+
+    setWishlist(
+      (currentWishlist) =>
+        currentWishlist.map(
+          (product) =>
+            getProductId(
+              product
+            ) === updatedId
+              ? updatedProduct
+              : product
+        )
+    );
+
+
+    setCompareProducts(
+      (current) =>
+        current.map(
+          (product) =>
+            getProductId(
+              product
+            ) === updatedId
+              ? updatedProduct
+              : product
+        )
+    );
+
+
+    if (
+      selectedProduct &&
+      getProductId(
+        selectedProduct
+      ) === updatedId
+    ) {
+      setSelectedProduct(
+        updatedProduct
+      );
+    }
+
+
+    showNotification(
+      "Product updated successfully."
+    );
+  };
+
+
+  const handleProductDeleted = (
+    deletedProduct
+  ) => {
+    const deletedId =
+      typeof deletedProduct ===
+      "object"
+        ? getProductId(
+            deletedProduct
+          )
+        : deletedProduct;
+
+
+    if (!deletedId) {
+      loadProducts();
+
+      return;
+    }
+
+
+    setProducts(
+      (currentProducts) =>
+        currentProducts.filter(
+          (product) =>
+            getProductId(
+              product
+            ) !== deletedId
+        )
+    );
+
+
+    setCart(
+      (currentCart) =>
+        currentCart.filter(
+          (product) =>
+            getProductId(
+              product
+            ) !== deletedId
+        )
+    );
+
+
+    setWishlist(
+      (currentWishlist) =>
+        currentWishlist.filter(
+          (product) =>
+            getProductId(
+              product
+            ) !== deletedId
+        )
+    );
+
+
+    setCompareProducts(
+      (current) =>
+        current.filter(
+          (product) =>
+            getProductId(
+              product
+            ) !== deletedId
+        )
+    );
+
+
+    setRecentlyViewed(
+      (current) =>
+        current.filter(
+          (product) =>
+            getProductId(
+              product
+            ) !== deletedId
+        )
+    );
+
+
+    if (
+      selectedProduct &&
+      getProductId(
+        selectedProduct
+      ) === deletedId
+    ) {
+      setSelectedProduct(
+        null
+      );
+    }
+
+
+    showNotification(
+      "Product deleted successfully."
+    );
+  };
+
+
+  /* =================================================
+     DERIVED VALUES
+  ================================================= */
+
+  const categories =
+    useMemo(() => {
+      const values =
+        products
+          .map(
+            (product) =>
+              product.category
+          )
+          .filter(Boolean);
+
+      return [
+        "All",
+        ...Array.from(
+          new Set(values)
+        ),
+      ];
+    }, [products]);
+
+
+  const filteredProducts =
+    useMemo(() => {
+      let result = [
+        ...products,
+      ];
+
+
+      const normalizedSearch =
+        search
+          .trim()
+          .toLowerCase();
+
+
+      /* SEARCH */
+
+      if (normalizedSearch) {
+        result =
+          result.filter(
+            (product) => {
+              const searchable =
+                [
+                  product.name,
+                  product.category,
+                  product.description,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+
+              return searchable.includes(
+                normalizedSearch
+              );
+            }
+          );
+      }
+
+
+      /* CATEGORY */
+
+      if (
+        selectedCategory !==
+        "All"
+      ) {
+        result =
+          result.filter(
+            (product) =>
+              product.category ===
+              selectedCategory
+          );
+      }
+
+
+      /* LOW TO HIGH */
+
+      if (
+        sortOption ===
+        "price-low"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(a.price) -
+            Number(b.price)
+        );
+      }
+
+
+      /* HIGH TO LOW */
+
+      if (
+        sortOption ===
+        "price-high"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(b.price) -
+            Number(a.price)
+        );
+      }
+
+
+      /* RATING */
+
+      if (
+        sortOption ===
+        "rating"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(
+              b.rating || 0
+            ) -
+            Number(
+              a.rating || 0
+            )
+        );
+      }
+
+
+      /* NAME */
+
+      if (
+        sortOption ===
+        "name"
+      ) {
+        result.sort(
+          (a, b) =>
+            String(
+              a.name || ""
+            ).localeCompare(
+              String(
+                b.name || ""
+              )
+            )
+        );
+      }
+
+
+      return result;
+
+    }, [
+      products,
+      search,
+      selectedCategory,
+      sortOption,
+    ]);
+
+
+  /* =================================================
+     CART COUNT
+  ================================================= */
+
+  const cartCount =
+    useMemo(() => {
+      return cart.reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          Number(
+            item.quantity || 1
+          ),
+        0
+      );
+    }, [cart]);
+
+
+  /* =================================================
+     WISHLIST COUNT
+  ================================================= */
+
+  const wishlistCount =
+    wishlist.length;
+
+
+  /* =================================================
+     SCROLL HELPER
+  ================================================= */
+
+  const scrollToSection = (
+    sectionId
+  ) => {
+    const element =
+      document.getElementById(
+        sectionId
+      );
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+      });
+    }
+  };
+
+
+  /* =================================================
+     SCROLL REVEAL ANIMATION
+  ================================================= */
+
+  useEffect(() => {
+    const revealElements =
+      document.querySelectorAll(
+        ".scroll-reveal"
+      );
+
+
+    const observer =
+      new IntersectionObserver(
+        (entries) => {
+          entries.forEach(
+            (entry) => {
+              if (
+                entry.isIntersecting
+              ) {
+                entry.target.classList.add(
+                  "show"
+                );
+
+                observer.unobserve(
+                  entry.target
+                );
+              }
+            }
+          );
+        },
+        {
+          threshold: 0.12,
+
+          rootMargin:
+            "0px 0px -40px 0px",
+        }
+      );
+
+
+    revealElements.forEach(
+      (element) => {
+        observer.observe(
+          element
+        );
+      }
+    );
+
+
+    return () => {
+      observer.disconnect();
+    };
+
+  }, [
+    products,
+    showAIAssistant,
+    recentlyViewed,
+  ]);
+
+
+  /* =================================================
+     MAIN UI
+  ================================================= */
 
   return (
     <div className="app">
 
       {/* =================================================
+          NOTIFICATION
+      ================================================= */}
+
+      {notification && (
+        <div className="notification">
+          {notification}
+        </div>
+      )}
+            {/* =================================================
           NAVBAR
       ================================================= */}
 
-      <header className="navbar">
+      <nav
+        className={`navbar ${
+          navbarScrolled
+            ? "navbar-scrolled"
+            : ""
+        }`}
+      >
+
+        {/* =================================================
+            BRAND
+        ================================================= */}
 
         <div
-          className="logo"
-          onClick={() => {
-            setSearch("");
-            setSelectedCategory(
-              "All"
-            );
-
-            window.scrollTo({
-              top: 0,
-              behavior: "smooth",
-            });
-          }}
+          className="brand"
+          onClick={() =>
+            scrollToSection("home")
+          }
         >
-          🛍️ ShopMind{" "}
-          <span>AI</span>
+
+          <span className="brand-icon">
+            🛍️
+          </span>
+
+          <div className="brand-text">
+
+            <h1>
+              ShopMind AI
+            </h1>
+
+            <p>
+              Smart Shopping Assistant
+            </p>
+
+          </div>
+
         </div>
 
-        <nav>
-          <a href="#home">
-            Home
-          </a>
 
-          <a href="#products">
-            Products
-          </a>
+        {/* =================================================
+            NAVIGATION LINKS
+        ================================================= */}
 
-          <a href="#ai">
-            AI Assistant
-          </a>
-        </nav>
-
-        <div className="navbar-actions">
+        <div className="nav-links">
 
           <button
-            className="cart-btn"
+            type="button"
+            className="nav-link-btn"
+            onClick={() =>
+              scrollToSection("home")
+            }
+          >
+            <span>
+              Home
+            </span>
+          </button>
+
+
+          <button
+            type="button"
+            className="nav-link-btn"
+            onClick={() =>
+              scrollToSection(
+                "products"
+              )
+            }
+          >
+            <span>
+              Products
+            </span>
+          </button>
+
+
+          <button
+            type="button"
+            className="nav-link-btn ai-nav-link"
+            onClick={() => {
+
+              setShowAIAssistant(
+                true
+              );
+
+              window.setTimeout(
+                () => {
+                  scrollToSection(
+                    "ai-shopping"
+                  );
+                },
+                100
+              );
+
+            }}
+          >
+
+            <span className="nav-link-icon">
+              🤖
+            </span>
+
+            <span>
+              AI Search
+            </span>
+
+          </button>
+
+
+          <button
+            type="button"
+            className="nav-link-btn wishlist-nav-link"
+            onClick={() =>
+              setShowWishlist(true)
+            }
+          >
+
+            <span className="nav-link-icon">
+              ❤️
+            </span>
+
+            <span>
+              Wishlist
+            </span>
+
+            {wishlistCount > 0 && (
+              <span className="nav-count">
+                {wishlistCount}
+              </span>
+            )}
+
+          </button>
+
+
+          <button
+            type="button"
+            className="nav-link-btn cart-nav-link"
             onClick={() =>
               setShowCart(true)
             }
           >
-            🛒 Cart
+
+            <span className="nav-link-icon">
+              🛒
+            </span>
+
+            <span>
+              Cart
+            </span>
 
             {cartCount > 0 && (
-              <span className="cart-count">
+              <span className="nav-count">
                 {cartCount}
               </span>
             )}
-          </button>
 
-          <button
-            className="login-btn"
-            onClick={() =>
-              alert(
-                "Login will be connected in the next step."
-              )
-            }
-          >
-            Login
           </button>
 
         </div>
 
-      </header>
+
+        {/* =================================================
+            LOGIN / USER AREA
+        ================================================= */}
+
+        <div className="nav-actions">
+
+          {user ? (
+            <>
+
+              {/* USER INFORMATION */}
+
+              <div className="user-info">
+
+                <span className="user-avatar">
+                  👤
+                </span>
+
+                <div className="user-details">
+
+                  <strong>
+                    {user.name ||
+                      user.username ||
+                      "User"}
+                  </strong>
+
+                  {user.email && (
+                    <small>
+                      {user.email}
+                    </small>
+                  )}
+
+                </div>
+
+              </div>
+
+
+              {/* ORDERS */}
+
+              <button
+                type="button"
+                className="orders-nav-btn animated-nav-action"
+                onClick={() =>
+                  setShowOrders(true)
+                }
+              >
+
+                <span>
+                  📦
+                </span>
+
+                Orders
+
+              </button>
+
+
+              {/* =================================================
+                  ADMIN BUTTONS
+              ================================================= */}
+
+              {user?.role ===
+                "admin" && (
+
+                <div className="admin-nav-actions">
+
+                  <button
+                    type="button"
+                    className="animated-nav-action"
+                    onClick={() =>
+                      setShowAdminDashboard(
+                        true
+                      )
+                    }
+                  >
+
+                    <span>
+                      📊
+                    </span>
+
+                    Dashboard
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    className="animated-nav-action"
+                    onClick={() =>
+                      setShowAdminPanel(
+                        true
+                      )
+                    }
+                  >
+
+                    <span>
+                      ⚙️
+                    </span>
+
+                    Products
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    className="animated-nav-action"
+                    onClick={() =>
+                      setShowAdminOrders(
+                        true
+                      )
+                    }
+                  >
+
+                    <span>
+                      📋
+                    </span>
+
+                    Admin Orders
+
+                  </button>
+
+                </div>
+
+              )}
+
+
+              {/* LOGOUT */}
+
+              <button
+                type="button"
+                className="logout-btn animated-nav-action"
+                onClick={
+                  handleLogout
+                }
+              >
+                Logout
+              </button>
+
+            </>
+          ) : (
+
+            /* LOGIN */
+
+            <button
+              type="button"
+              className="login-btn animated-nav-action"
+              onClick={() =>
+                setShowAuth(true)
+              }
+            >
+
+              <span>
+                👤
+              </span>
+
+              Login
+
+            </button>
+
+          )}
+
+        </div>
+
+      </nav>
+
 
       {/* =================================================
-          HERO
+          HERO SECTION
       ================================================= */}
 
       <section
-        className="hero"
         id="home"
+        className="hero"
       >
 
-        <div className="hero-text">
+        {/* HERO LEFT SIDE */}
 
-          <div className="badge">
+        <div className="hero-content">
+
+          <span className="hero-badge">
             ✨ AI-Powered Shopping
-            Assistant
-          </div>
+          </span>
 
-          <h1>
-            Shop Smarter.
-            <br />
+
+          <h2>
+
+            Find the Perfect Product
+
             <span>
-              Buy Better.
+              {" "}
+              with ShopMind AI
             </span>
-          </h1>
+
+          </h2>
+
 
           <p>
-            Discover products,
-            compare options and find
-            products that match your
-            needs with ShopMind AI.
+            Search smarter, compare
+            products, discover personalized
+            recommendations and shop with
+            confidence.
           </p>
 
-          <form
-            className="search-box"
-            onSubmit={
-              handleSearch
+
+          {/* =================================================
+              HERO SEARCH
+          ================================================= */}
+
+          <div className="hero-search">
+
+            <span className="search-icon">
+              🔎
+            </span>
+
+
+            <input
+              type="text"
+              value={search}
+              placeholder="Search laptops, smartphones, headphones..."
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              onKeyDown={(
+                event
+              ) => {
+
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
+
+                  scrollToSection(
+                    "products"
+                  );
+
+                }
+
+              }}
+            />
+
+
+            <button
+              type="button"
+              onClick={() =>
+                scrollToSection(
+                  "products"
+                )
+              }
+            >
+              Search
+            </button>
+
+          </div>
+
+
+          {/* =================================================
+              HERO BUTTONS
+          ================================================= */}
+
+          <div className="hero-actions">
+
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() =>
+                scrollToSection(
+                  "products"
+                )
+              }
+            >
+              🛍️ Explore Products
+            </button>
+
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+
+                setShowAIAssistant(
+                  true
+                );
+
+
+                window.setTimeout(
+                  () => {
+
+                    scrollToSection(
+                      "ai-shopping"
+                    );
+
+                  },
+                  100
+                );
+
+              }}
+            >
+              🤖 Ask AI Assistant
+            </button>
+
+          </div>
+
+
+          {/* =================================================
+              HERO FEATURES
+          ================================================= */}
+
+          <div className="hero-features">
+
+            <div>
+
+              <span>
+                🤖
+              </span>
+
+              <p>
+
+                <strong>
+                  AI Recommendations
+                </strong>
+
+                <small>
+                  Find products that
+                  match your needs.
+                </small>
+
+              </p>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                ⚖️
+              </span>
+
+              <p>
+
+                <strong>
+                  Easy Comparison
+                </strong>
+
+                <small>
+                  Compare your favorite
+                  products.
+                </small>
+
+              </p>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                🔒
+              </span>
+
+              <p>
+
+                <strong>
+                  Smart Shopping
+                </strong>
+
+                <small>
+                  Simple, fast and
+                  convenient.
+                </small>
+
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            HERO RIGHT SIDE
+        ================================================= */}
+
+        <div className="hero-visual">
+
+          <div className="hero-card hero-card-main">
+
+            <span className="hero-card-icon">
+              🛍️
+            </span>
+
+
+            <h3>
+              Your Personal Shopping
+              Assistant
+            </h3>
+
+
+            <p>
+              Tell ShopMind what you need
+              and discover suitable
+              products.
+            </p>
+
+
+            <button
+              type="button"
+              onClick={() => {
+
+                setShowAIAssistant(
+                  true
+                );
+
+
+                window.setTimeout(
+                  () => {
+
+                    scrollToSection(
+                      "ai-shopping"
+                    );
+
+                  },
+                  100
+                );
+
+              }}
+            >
+              Try AI Search →
+            </button>
+
+          </div>
+
+
+          {/* FLOATING CARDS */}
+
+          <div className="floating-card floating-card-one">
+            ⭐ Top Rated
+          </div>
+
+
+          <div className="floating-card floating-card-two">
+            💰 Best Value
+          </div>
+
+
+          <div className="floating-card floating-card-three">
+            ✓ In Stock
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =================================================
+          AI SHOPPING ASSISTANT
+      ================================================= */}
+
+      {showAIAssistant && (
+
+        <section
+          id="ai-shopping"
+          className="ai-section scroll-reveal"
+        >
+
+          <div className="section-heading">
+
+            <div>
+
+              <span className="section-label">
+                SHOPMIND AI
+              </span>
+
+
+              <h2>
+                🤖 AI Shopping Assistant
+              </h2>
+
+
+              <p>
+                Describe what you are
+                looking for and let
+                ShopMind help you discover
+                suitable products.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              className="close-ai-btn"
+              onClick={() =>
+                setShowAIAssistant(
+                  false
+                )
+              }
+            >
+              ✕ Close
+            </button>
+
+          </div>
+
+
+          <AIShoppingAssistant
+            products={products}
+            onViewProduct={
+              openProduct
             }
-          >
+            onAddToCart={
+              addToCart
+            }
+          />
+
+        </section>
+
+      )}
+
+
+      {/* =================================================
+          PRODUCTS SECTION
+          CONTINUES IN PART 4
+      ================================================= */}
+            {/* =================================================
+          PRODUCTS SECTION
+      ================================================= */}
+
+      <section
+        id="products"
+        className="products-section scroll-reveal"
+      >
+
+        <div className="section-heading">
+
+          <div>
+
+            <span className="section-label">
+              OUR PRODUCTS
+            </span>
+
+            <h2>
+              Discover Products
+            </h2>
+
+            <p>
+              Browse products, compare
+              options and add your
+              favorites to your cart.
+            </p>
+
+          </div>
+
+
+          <div className="products-count">
+            {filteredProducts.length}{" "}
+            products
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            SEARCH / FILTER / SORT
+        ================================================= */}
+
+        <div className="products-toolbar">
+
+          <div className="product-search-box">
 
             <span>
-              🔍
+              🔎
             </span>
 
             <input
               type="text"
-              placeholder="Search laptops, phones, headphones..."
+              placeholder="Search products..."
               value={search}
               onChange={(event) =>
                 setSearch(
@@ -617,111 +2462,127 @@ function App() {
               }
             />
 
-            <button type="submit">
-              Search
-            </button>
 
-          </form>
+            {search && (
 
-        </div>
-
-        <div className="ai-card">
-
-          <div className="ai-icon">
-            🤖
-          </div>
-
-          <h2>
-            Your AI Shopping
-            Assistant
-          </h2>
-
-          <p>
-            Tell ShopMind AI what
-            you're looking for and
-            discover products that
-            fit your needs.
-          </p>
-
-          <button
-            className="primary-btn"
-            onClick={() =>
-              document
-                .getElementById("ai")
-                ?.scrollIntoView({
-                  behavior:
-                    "smooth",
-                })
-            }
-          >
-            Try AI Assistant
-          </button>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          PRODUCTS
-      ================================================= */}
-
-      <section
-        className="products-section"
-        id="products"
-      >
-
-        <div className="section-heading">
-
-          <span>
-            EXPLORE PRODUCTS
-          </span>
-
-          <h2>
-            Find what you're
-            looking for
-          </h2>
-
-          <p>
-            Search and filter
-            products based on your
-            requirements.
-          </p>
-
-        </div>
-
-        {/* CATEGORY FILTER */}
-
-        <div className="categories">
-
-          {categories.map(
-            (category) => (
               <button
-                key={category}
-                className={
-                  selectedCategory ===
-                  category
-                    ? "category active"
-                    : "category"
-                }
+                type="button"
                 onClick={() =>
-                  setSelectedCategory(
-                    category
-                  )
+                  setSearch("")
                 }
               >
-                {category}
+                ✕
               </button>
-            )
+
+            )}
+
+          </div>
+
+
+          {/* CATEGORY FILTER */}
+
+          <select
+            value={selectedCategory}
+            onChange={(event) =>
+              setSelectedCategory(
+                event.target.value
+              )
+            }
+          >
+
+            {categories.map(
+              (category) => (
+
+                <option
+                  key={category}
+                  value={category}
+                >
+                  {category}
+                </option>
+
+              )
+            )}
+
+          </select>
+
+
+          {/* SORT */}
+
+          <select
+            value={sortOption}
+            onChange={(event) =>
+              setSortOption(
+                event.target.value
+              )
+            }
+          >
+
+            <option value="default">
+              Sort: Default
+            </option>
+
+            <option value="price-low">
+              Price: Low to High
+            </option>
+
+            <option value="price-high">
+              Price: High to Low
+            </option>
+
+            <option value="rating">
+              Highest Rating
+            </option>
+
+            <option value="name">
+              Name: A-Z
+            </option>
+
+          </select>
+
+
+          {/* CLEAR FILTERS */}
+
+          {(search ||
+            selectedCategory !==
+              "All" ||
+            sortOption !==
+              "default") && (
+
+            <button
+              type="button"
+              className="clear-filter-btn"
+              onClick={() => {
+
+                setSearch("");
+
+                setSelectedCategory(
+                  "All"
+                );
+
+                setSortOption(
+                  "default"
+                );
+
+              }}
+            >
+              Clear
+            </button>
+
           )}
 
         </div>
 
-        {/* LOADING */}
 
-        {productsLoading && (
-          <div className="status-box">
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
-            <div className="loader">
+        {loading && (
+
+          <div className="products-status">
+
+            <div className="loading-spinner">
+              ⏳
             </div>
 
             <h3>
@@ -729,333 +2590,658 @@ function App() {
             </h3>
 
             <p>
-              Connecting to
-              ShopMind AI server.
+              Please wait while ShopMind
+              loads the product catalog.
             </p>
 
           </div>
+
         )}
 
-        {/* ERROR */}
 
-        {!productsLoading &&
-          productsError && (
-            <div className="status-box error-box">
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
-              <h3>
-                ⚠️ Unable to load
-                products
-              </h3>
+        {!loading && error && (
 
-              <p>
-                {productsError}
-              </p>
+          <div className="products-status error-state">
 
-              <button
-                className="primary-btn"
-                onClick={
-                  loadProducts
-                }
-              >
-                Try Again
-              </button>
+            <span>
+              ⚠️
+            </span>
 
-            </div>
-          )}
+            <h3>
+              Unable to load products
+            </h3>
 
-        {/* PRODUCTS */}
+            <p>
+              {error}
+            </p>
 
-        {!productsLoading &&
-          !productsError &&
-          filteredProducts.length >
-            0 && (
-            <div className="product-grid">
+            <button
+              type="button"
+              onClick={
+                loadProducts
+              }
+            >
+              Try Again
+            </button>
 
-              {filteredProducts.map(
-                (product) => {
-                  const stock =
-                    getStock(
-                      product
-                    );
+          </div>
 
-                  return (
-                    <div
-                      className="product-card"
-                      key={
-                        product._id
-                      }
-                    >
+        )}
 
-                      <div
-                        className="product-image"
-                        onClick={() =>
-                          setSelectedProduct(
-                            product
-                          )
-                        }
-                      >
-                        {product.icon ||
-                          "🛍️"}
-                      </div>
 
-                      <div className="product-info">
+        {/* =================================================
+            NO PRODUCTS
+        ================================================= */}
 
-                        <span className="product-category">
-                          {
-                            product.category
-                          }
-                        </span>
-
-                        <h3>
-                          {
-                            product.name
-                          }
-                        </h3>
-
-                        <div className="rating">
-                          ⭐{" "}
-                          {product.rating ||
-                            "N/A"}
-                        </div>
-
-                        <p className="description">
-                          {product.description ||
-                            "No description available."}
-                        </p>
-
-                        <div className="stock">
-
-                          {stock > 0
-                            ? "🟢"
-                            : "🔴"}{" "}
-
-                          {getStockLabel(
-                            product
-                          )}
-
-                        </div>
-
-                        <div className="product-bottom">
-
-                          <div className="price">
-                            {formatPrice(
-                              product.price
-                            )}
-                          </div>
-
-                          <button
-                            disabled={
-                              stock <= 0
-                            }
-                            onClick={() =>
-                              addToCart(
-                                product
-                              )
-                            }
-                          >
-                            {stock <= 0
-                              ? "Out of Stock"
-                              : "Add to Cart"}
-                          </button>
-
-                        </div>
-
-                        <button
-                          className="view-btn"
-                          onClick={() =>
-                            setSelectedProduct(
-                              product
-                            )
-                          }
-                        >
-                          View Details
-                        </button>
-
-                      </div>
-
-                    </div>
-                  );
-                }
-              )}
-
-            </div>
-          )}
-
-        {/* NO RESULTS */}
-
-        {!productsLoading &&
-          !productsError &&
+        {!loading &&
+          !error &&
           filteredProducts.length ===
             0 && (
-            <div className="status-box">
+
+            <div className="products-status">
+
+              <span>
+                🔍
+              </span>
 
               <h3>
-                🔎 No products found
+                No products found
               </h3>
 
               <p>
-                Try another search
-                or category.
+                Try another search or
+                category.
               </p>
 
               <button
-                className="primary-btn"
+                type="button"
                 onClick={() => {
+
                   setSearch("");
 
                   setSelectedCategory(
                     "All"
                   );
+
+                  setSortOption(
+                    "default"
+                  );
+
                 }}
               >
                 Show All Products
               </button>
 
             </div>
+
+          )}
+
+
+        {/* =================================================
+            PRODUCT GRID
+        ================================================= */}
+
+        {!loading &&
+          !error &&
+          filteredProducts.length >
+            0 && (
+
+            <div className="products-grid">
+
+              {filteredProducts.map(
+                (
+                  product,
+                  index
+                ) => {
+
+                  const productId =
+                    getProductId(
+                      product
+                    );
+
+
+                  const stock =
+                    getProductStock(
+                      product
+                    );
+
+
+                  const outOfStock =
+                    stock <= 0;
+
+
+                  const wishlisted =
+                    isWishlisted(
+                      productId
+                    );
+
+
+                  const comparing =
+                    isComparing(
+                      product
+                    );
+
+
+                  return (
+
+                    <article
+                      className="product-card scroll-reveal"
+                      key={productId}
+                      style={{
+                        transitionDelay:
+                          `${
+                            Math.min(
+                              index,
+                              7
+                            ) * 70
+                          }ms`,
+                      }}
+                    >
+
+                      {/* =====================================
+                          PRODUCT IMAGE
+                      ===================================== */}
+
+                      <div className="product-image-area">
+
+                        {product.image ? (
+
+                          <img
+                            src={
+                              product.image
+                            }
+                            alt={
+                              product.name
+                            }
+                            className="product-image"
+                            onError={(
+                              event
+                            ) => {
+
+                              event.currentTarget.style.display =
+                                "none";
+
+
+                              const fallback =
+                                event
+                                  .currentTarget
+                                  .nextElementSibling;
+
+
+                              if (
+                                fallback
+                              ) {
+
+                                fallback.style.display =
+                                  "flex";
+
+                              }
+
+                            }}
+                          />
+
+                        ) : null}
+
+
+                        {/* IMAGE FALLBACK */}
+
+                        <div
+                          className="product-image-fallback"
+                          style={{
+                            display:
+                              product.image
+                                ? "none"
+                                : "flex",
+                          }}
+                        >
+
+                          <span>
+                            {product.icon ||
+                              "🛍️"}
+                          </span>
+
+                        </div>
+
+
+                        {/* =====================================
+                            WISHLIST
+                        ===================================== */}
+
+                        <button
+                          type="button"
+                          className={`product-wishlist-btn ${
+                            wishlisted
+                              ? "active"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            toggleWishlist(
+                              product
+                            )
+                          }
+                          title={
+                            wishlisted
+                              ? "Remove from wishlist"
+                              : "Add to wishlist"
+                          }
+                        >
+
+                          {wishlisted
+                            ? "❤️"
+                            : "🤍"}
+
+                        </button>
+
+
+                        {/* =====================================
+                            STOCK BADGE
+                        ===================================== */}
+
+                        <span
+                          className={`product-stock-badge ${getStockClass(
+                            product
+                          )}`}
+                        >
+
+                          {outOfStock
+                            ? "Out of Stock"
+                            : stock <= 5
+                            ? `Only ${stock} left`
+                            : "In Stock"}
+
+                        </span>
+
+                      </div>
+
+
+                      {/* =====================================
+                          PRODUCT CONTENT
+                      ===================================== */}
+
+                      <div className="product-card-content">
+
+                        <span className="product-category">
+
+                          {product.category ||
+                            "Product"}
+
+                        </span>
+
+
+                        <h3>
+                          {product.name}
+                        </h3>
+
+
+                        {/* RATING */}
+
+                        <div className="product-rating">
+
+                          <span>
+                            ⭐
+                          </span>
+
+                          <strong>
+                            {Number(
+                              product.rating ||
+                                0
+                            ).toFixed(
+                              1
+                            )}
+                          </strong>
+
+                        </div>
+
+
+                        {/* DESCRIPTION */}
+
+                        <p className="product-description">
+
+                          {product.description ||
+                            "Discover this product from ShopMind AI."}
+
+                        </p>
+
+
+                        {/* PRICE */}
+
+                        <div className="product-price">
+
+                          ₹
+                          {formatPrice(
+                            product.price
+                          )}
+
+                        </div>
+
+
+                        {/* STOCK */}
+
+                        <p
+                          className={`product-stock-text ${getStockClass(
+                            product
+                          )}`}
+                        >
+
+                          {outOfStock
+                            ? "Currently unavailable"
+                            : `${stock} units available`}
+
+                        </p>
+
+
+                        {/* =====================================
+                            PRODUCT ACTIONS
+                        ===================================== */}
+
+                        <div className="product-actions">
+
+                          <button
+                            type="button"
+                            className="view-btn"
+                            onClick={() =>
+                              openProduct(
+                                product
+                              )
+                            }
+                          >
+                            👁️ View
+                          </button>
+
+
+                          <button
+                            type="button"
+                            className="add-cart-btn"
+                            onClick={() =>
+                              addToCart(
+                                product
+                              )
+                            }
+                            disabled={
+                              outOfStock
+                            }
+                          >
+
+                            {outOfStock
+                              ? "Out of Stock"
+                              : "🛒 Add to Cart"}
+
+                          </button>
+
+                        </div>
+
+
+                        {/* =====================================
+                            COMPARE
+                        ===================================== */}
+
+                        <button
+                          type="button"
+                          className={`compare-btn ${
+                            comparing
+                              ? "active"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            toggleCompare(
+                              product
+                            )
+                          }
+                        >
+
+                          {comparing
+                            ? "✓ Added to Compare"
+                            : "⚖️ Compare"}
+
+                        </button>
+
+                      </div>
+
+                    </article>
+
+                  );
+
+                }
+              )}
+
+            </div>
+
           )}
 
       </section>
 
+
       {/* =================================================
-          AI ASSISTANT
+          COMPARE BAR
       ================================================= */}
 
-      <section
-        className="ai-section"
-        id="ai"
-      >
+      {compareProducts.length >
+        0 && (
 
-        <div className="ai-section-text">
+        <section className="compare-bar">
 
-          <span className="badge">
-            🤖 SMART SHOPPING
-          </span>
+          <div className="compare-bar-info">
 
-          <h2>
-            Ask ShopMind AI
-          </h2>
-
-          <p>
-            Not sure what to buy?
-            Tell our shopping
-            assistant what you need
-            and your budget.
-          </p>
-
-          <div className="ai-features">
+            <span>
+              ⚖️
+            </span>
 
             <div>
-              ✓ Product discovery
-            </div>
 
-            <div>
-              ✓ Budget-based
-              suggestions
-            </div>
+              <strong>
+                Compare Products
+              </strong>
 
-            <div>
-              ✓ Smart product
-              matching
+              <small>
+
+                {
+                  compareProducts.length
+                }{" "}
+
+                product
+
+                {compareProducts.length !==
+                1
+                  ? "s"
+                  : ""}{" "}
+
+                selected
+
+              </small>
+
             </div>
 
           </div>
 
-        </div>
 
-        <div className="chat-card">
+          {/* SELECTED PRODUCTS */}
 
-          <div className="chat-header">
+          <div className="compare-bar-products">
 
-            <div className="ai-avatar">
-              🤖
-            </div>
+            {compareProducts.map(
+              (product) => (
 
-            <div>
-              <h3>
-                ShopMind AI
-              </h3>
-
-              <p>
-                ● Online
-              </p>
-            </div>
-
-          </div>
-
-          <div className="chat-messages">
-
-            {aiMessages.map(
-              (message, index) => (
                 <div
-                  key={index}
-                  className={
-                    message.sender ===
-                    "user"
-                      ? "user-message"
-                      : "ai-message"
-                  }
+                  key={getProductId(
+                    product
+                  )}
+                  className="compare-mini-product"
                 >
-                  {message.text
-                    .split("\n")
-                    .map(
-                      (
-                        line,
-                        lineIndex
-                      ) => (
-                        <div
-                          key={
-                            lineIndex
-                          }
-                        >
-                          {line}
-                        </div>
+
+                  {product.image ? (
+
+                    <img
+                      src={
+                        product.image
+                      }
+                      alt={
+                        product.name
+                      }
+                    />
+
+                  ) : (
+
+                    <span>
+                      {product.icon ||
+                        "🛍️"}
+                    </span>
+
+                  )}
+
+
+                  <span>
+                    {product.name}
+                  </span>
+
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      toggleCompare(
+                        product
                       )
-                    )}
+                    }
+                  >
+                    ✕
+                  </button>
+
                 </div>
+
               )
             )}
 
           </div>
 
-          <form
-            className="chat-input"
-            onSubmit={
-              handleAIChat
-            }
-          >
 
-            <input
-              type="text"
-              placeholder="Ask ShopMind AI..."
-              value={aiMessage}
-              onChange={(event) =>
-                setAiMessage(
-                  event.target.value
+          {/* COMPARE ACTIONS */}
+
+          <div className="compare-bar-actions">
+
+            <button
+              type="button"
+              onClick={() =>
+                setCompareProducts(
+                  []
                 )
+              }
+            >
+              Clear
+            </button>
+
+
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() =>
+                setShowCompare(
+                  true
+                )
+              }
+              disabled={
+                compareProducts.length <
+                2
+              }
+            >
+              Compare Now
+            </button>
+
+          </div>
+
+        </section>
+
+      )}
+
+
+      {/* =================================================
+          RECOMMENDED PRODUCTS
+
+          IMPORTANT:
+          This is the ONLY Recommended Products section.
+          The duplicate from the old App.jsx is removed.
+      ================================================= */}
+
+      {products.length > 0 && (
+
+        <section
+          className="recommendations-section scroll-reveal"
+        >
+
+          <div className="section-heading">
+
+            <div className="recommendations-heading-content">
+
+              <span className="section-label">
+                FOR YOU
+              </span>
+
+
+              <h2>
+
+                <span className="recommendations-sparkle">
+                  ✨
+                </span>
+
+                {" "}
+
+                Recommended Products
+
+              </h2>
+
+
+              <p>
+                More products you may
+                want to explore.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div className="recommendations-content">
+
+            <RecommendedProducts
+              products={products}
+              cart={cart}
+              wishlist={wishlist}
+              recentlyViewed={
+                recentlyViewed
+              }
+              onViewProduct={
+                openProduct
+              }
+              onAddToCart={
+                addToCart
+              }
+              onToggleWishlist={
+                toggleWishlist
               }
             />
 
-            <button type="submit">
-              ➤
-            </button>
+          </div>
 
-          </form>
+        </section>
 
-        </div>
+      )}
 
-      </section>
 
       {/* =================================================
+          REMAINING APP CONTINUES IN PART 5
+      ================================================= */}
+            {/* =================================================
           PRODUCT DETAILS MODAL
       ================================================= */}
 
       {selectedProduct && (
+
         <div
           className="modal-overlay"
-          onClick={() =>
-            setSelectedProduct(
-              null
-            )
+          onClick={
+            closeProduct
           }
         >
 
@@ -1066,124 +3252,700 @@ function App() {
             }
           >
 
+            {/* CLOSE */}
+
             <button
-              className="close-btn"
-              onClick={() =>
-                setSelectedProduct(
-                  null
-                )
+              type="button"
+              className="modal-close-btn"
+              onClick={
+                closeProduct
               }
             >
               ✕
             </button>
 
-            <div className="modal-icon">
-              {selectedProduct.icon ||
-                "🛍️"}
+
+            {/* =================================================
+                PRODUCT IMAGE
+            ================================================= */}
+
+            <div className="product-modal-image">
+
+              {selectedProduct.image ? (
+
+                <img
+                  src={
+                    selectedProduct.image
+                  }
+                  alt={
+                    selectedProduct.name
+                  }
+                  onError={(
+                    event
+                  ) => {
+
+                    event.currentTarget.style.display =
+                      "none";
+
+
+                    const fallback =
+                      event
+                        .currentTarget
+                        .nextElementSibling;
+
+
+                    if (
+                      fallback
+                    ) {
+
+                      fallback.style.display =
+                        "flex";
+
+                    }
+
+                  }}
+                />
+
+              ) : null}
+
+
+              <div
+                className="product-modal-image-fallback"
+                style={{
+                  display:
+                    selectedProduct.image
+                      ? "none"
+                      : "flex",
+                }}
+              >
+
+                <span>
+                  {selectedProduct.icon ||
+                    "🛍️"}
+                </span>
+
+              </div>
+
             </div>
 
-            <span className="product-category">
-              {
-                selectedProduct.category
-              }
-            </span>
 
-            <h2>
-              {
-                selectedProduct.name
-              }
-            </h2>
+            {/* =================================================
+                PRODUCT DETAILS
+            ================================================= */}
 
-            <div className="modal-rating">
-              ⭐{" "}
-              {selectedProduct.rating ||
-                "N/A"}
-            </div>
+            <div className="product-modal-content">
 
-            <p>
-              {selectedProduct.description ||
-                "No description available."}
-            </p>
+              <span className="product-category">
 
-            <div className="modal-price">
-              {formatPrice(
-                selectedProduct.price
-              )}
-            </div>
+                {selectedProduct.category ||
+                  "Product"}
 
-            <p>
-              <strong>
-                Availability:
-              </strong>{" "}
-              {getStockLabel(
-                selectedProduct
-              )}
-            </p>
+              </span>
 
-            <button
-              className="buy-btn"
-              disabled={
-                getStock(
+
+              <h2>
+                {selectedProduct.name}
+              </h2>
+
+
+              {/* RATING */}
+
+              <div className="product-modal-rating">
+
+                <span>
+                  ⭐
+                </span>
+
+                <strong>
+
+                  {Number(
+                    selectedProduct.rating ||
+                      0
+                  ).toFixed(
+                    1
+                  )}
+
+                  / 5
+
+                </strong>
+
+              </div>
+
+
+              {/* PRICE */}
+
+              <div className="product-modal-price">
+
+                ₹
+                {formatPrice(
+                  selectedProduct.price
+                )}
+
+              </div>
+
+
+              {/* STOCK */}
+
+              <p
+                className={`product-modal-stock ${getStockClass(
+                  selectedProduct
+                )}`}
+              >
+
+                {getProductStock(
                   selectedProduct
                 ) <= 0
-              }
-              onClick={() => {
-                addToCart(
-                  selectedProduct
-                );
+                  ? "🔴 Out of Stock"
+                  : `🟢 In Stock (${getProductStock(
+                      selectedProduct
+                    )})`}
 
-                if (
-                  getStock(
+              </p>
+
+
+              {/* =================================================
+                  ABOUT PRODUCT
+              ================================================= */}
+
+              <div className="product-modal-about">
+
+                <h3>
+                  About this product
+                </h3>
+
+
+                <p>
+
+                  {selectedProduct.description ||
+                    "Product information is not available."}
+
+                </p>
+
+
+                <div className="product-detail-list">
+
+                  {/* CATEGORY */}
+
+                  <div>
+
+                    <span>
+                      Category
+                    </span>
+
+                    <strong>
+
+                      {selectedProduct.category ||
+                        "N/A"}
+
+                    </strong>
+
+                  </div>
+
+
+                  {/* AVAILABILITY */}
+
+                  <div>
+
+                    <span>
+                      Availability
+                    </span>
+
+                    <strong>
+
+                      {getProductStock(
+                        selectedProduct
+                      ) > 0
+                        ? `${getProductStock(
+                            selectedProduct
+                          )} available`
+                        : "Out of stock"}
+
+                    </strong>
+
+                  </div>
+
+
+                  {/* RATING */}
+
+                  <div>
+
+                    <span>
+                      Rating
+                    </span>
+
+                    <strong>
+
+                      ⭐{" "}
+
+                      {Number(
+                        selectedProduct.rating ||
+                          0
+                      ).toFixed(
+                        1
+                      )}
+
+                    </strong>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              {/* =================================================
+                  WISHLIST
+              ================================================= */}
+
+              <button
+                type="button"
+                className={`modal-wishlist-btn ${
+                  isWishlisted(
+                    getProductId(
+                      selectedProduct
+                    )
+                  )
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  toggleWishlist(
                     selectedProduct
-                  ) > 0
-                ) {
-                  setSelectedProduct(
-                    null
-                  );
+                  )
                 }
-              }}
-            >
-              {getStock(
-                selectedProduct
-              ) <= 0
-                ? "Out of Stock"
-                : "🛒 Add to Cart"}
-            </button>
+              >
+
+                {isWishlisted(
+                  getProductId(
+                    selectedProduct
+                  )
+                )
+                  ? "❤️ Remove from Wishlist"
+                  : "🤍 Wishlist"}
+
+              </button>
+
+
+              {/* =================================================
+                  COMPARE
+              ================================================= */}
+
+              <button
+                type="button"
+                className={`compare-btn ${
+                  isComparing(
+                    selectedProduct
+                  )
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  toggleCompare(
+                    selectedProduct
+                  )
+                }
+              >
+
+                {isComparing(
+                  selectedProduct
+                )
+                  ? "✓ Added to Compare"
+                  : "⚖️ Compare"}
+
+              </button>
+
+
+              {/* =================================================
+                  ADD TO CART
+              ================================================= */}
+
+              <button
+                type="button"
+                className="add-cart-btn product-modal-cart-btn"
+                disabled={
+                  getProductStock(
+                    selectedProduct
+                  ) <= 0
+                }
+                onClick={() =>
+                  addToCart(
+                    selectedProduct
+                  )
+                }
+              >
+
+                {getProductStock(
+                  selectedProduct
+                ) <= 0
+                  ? "Out of Stock"
+                  : "🛒 Add to Cart"}
+
+              </button>
+
+
+              {/* =================================================
+                  REVIEWS
+              ================================================= */}
+
+              <div className="product-reviews-wrapper">
+
+                <ReviewsSection
+                  product={
+                    selectedProduct
+                  }
+                  productId={
+                    getProductId(
+                      selectedProduct
+                    )
+                  }
+                  user={user}
+                  token={token}
+                  apiUrl={
+                    API_URL
+                  }
+                />
+
+              </div>
+
+            </div>
 
           </div>
 
         </div>
+
       )}
+
+
+      {/* =================================================
+          LOGIN MODAL
+      ================================================= */}
+
+      {showLogin && (
+
+        <LoginModal
+          isOpen={
+            showLogin
+          }
+          onClose={() =>
+            setShowLogin(
+              false
+            )
+          }
+          onLoginSuccess={
+            handleAuthSuccess
+          }
+          onSwitchToRegister={() => {
+
+            setShowLogin(
+              false
+            );
+
+            setShowAuth(
+              true
+            );
+
+          }}
+          apiUrl={
+            API_URL
+          }
+        />
+
+      )}
+
+
+      {/* =================================================
+          AUTH MODAL
+      ================================================= */}
+
+      {showAuth && (
+
+        <AuthModal
+          isOpen={
+            showAuth
+          }
+          onClose={() =>
+            setShowAuth(
+              false
+            )
+          }
+          onAuthSuccess={
+            handleAuthSuccess
+          }
+          onLoginSuccess={
+            handleAuthSuccess
+          }
+          apiUrl={
+            API_URL
+          }
+        />
+
+      )}
+
 
       {/* =================================================
           CART MODAL
       ================================================= */}
 
       {showCart && (
+
+        <CartModal
+          isOpen={
+            showCart
+          }
+          onClose={() =>
+            setShowCart(
+              false
+            )
+          }
+          cart={
+            cart
+          }
+          items={
+            cart
+          }
+          onIncrease={
+            increaseCartItem
+          }
+          onDecrease={
+            decreaseCartItem
+          }
+          onRemove={
+            removeCartItem
+          }
+          onRemoveItem={
+            removeCartItem
+          }
+          onClear={
+            clearCart
+          }
+          onClearCart={
+            clearCart
+          }
+          onCheckout={
+            handleCheckout
+          }
+          formatPrice={
+            formatPrice
+          }
+        />
+
+      )}
+
+
+      {/* =================================================
+          CHECKOUT MODAL
+      ================================================= */}
+
+      {showCheckout && (
+
+        <CheckoutModal
+          isOpen={
+            showCheckout
+          }
+          onClose={() =>
+            setShowCheckout(
+              false
+            )
+          }
+          cart={
+            cart
+          }
+          items={
+            cart
+          }
+          user={
+            user
+          }
+          token={
+            token
+          }
+          apiUrl={
+            API_URL
+          }
+          onOrderSuccess={
+            handleOrderSuccess
+          }
+          onSuccess={
+            handleOrderSuccess
+          }
+        />
+
+      )}
+
+
+      {/* =================================================
+          MY ORDERS
+      ================================================= */}
+
+      {showOrders && (
+
+        <MyOrdersModal
+          isOpen={
+            showOrders
+          }
+          onClose={() =>
+            setShowOrders(
+              false
+            )
+          }
+          user={
+            user
+          }
+          token={
+            token
+          }
+          apiUrl={
+            API_URL
+          }
+        />
+
+      )}
+
+
+      {/* =================================================
+          WISHLIST
+      ================================================= */}
+
+      {showWishlist && (
+
+        <WishlistModal
+          isOpen={
+            showWishlist
+          }
+          onClose={() =>
+            setShowWishlist(
+              false
+            )
+          }
+          wishlist={
+            wishlist
+          }
+          products={
+            wishlist
+          }
+          items={
+            wishlist
+          }
+          onToggleWishlist={
+            toggleWishlist
+          }
+          onRemove={
+            toggleWishlist
+          }
+          onViewProduct={(
+            product
+          ) => {
+
+            setShowWishlist(
+              false
+            );
+
+            openProduct(
+              product
+            );
+
+          }}
+          onAddToCart={
+            addToCart
+          }
+        />
+
+      )}
+
+
+      {/* =================================================
+          PRODUCT COMPARISON MODAL
+      ================================================= */}
+
+      {showCompare && (
+
         <div
           className="modal-overlay"
           onClick={() =>
-            setShowCart(false)
+            setShowCompare(
+              false
+            )
           }
         >
 
           <div
-            className="cart-modal"
+            className="compare-modal"
             onClick={(event) =>
               event.stopPropagation()
             }
           >
 
-            <div className="cart-header">
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={() =>
+                setShowCompare(
+                  false
+                )
+              }
+            >
+              ✕
+            </button>
 
-              <h2>
-                🛒 Your Cart
-              </h2>
+
+            <ProductComparison
+              products={
+                compareProducts
+              }
+              onViewProduct={(
+                product
+              ) => {
+
+                setShowCompare(
+                  false
+                );
+
+                openProduct(
+                  product
+                );
+
+              }}
+              onAddToCart={
+                addToCart
+              }
+            />
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {/* =================================================
+          ADMIN DASHBOARD
+      ================================================= */}
+
+      {showAdminDashboard &&
+        user?.role ===
+          "admin" && (
+
+          <div
+            className="modal-overlay admin-overlay"
+            onClick={() =>
+              setShowAdminDashboard(
+                false
+              )
+            }
+          >
+
+            <div
+              className="admin-modal-container"
+              onClick={(event) =>
+                event.stopPropagation()
+              }
+            >
 
               <button
-                className="close-btn"
+                type="button"
+                className="modal-close-btn"
                 onClick={() =>
-                  setShowCart(
+                  setShowAdminDashboard(
                     false
                   )
                 }
@@ -1191,194 +3953,229 @@ function App() {
                 ✕
               </button>
 
+
+              <AdminDashboard
+                user={
+                  user
+                }
+                token={
+                  token
+                }
+                apiUrl={
+                  API_URL
+                }
+                products={
+                  products
+                }
+              />
+
             </div>
-
-            {cart.length === 0 ? (
-
-              <div className="empty-cart">
-
-                <div className="empty-cart-icon">
-                  🛒
-                </div>
-
-                <h3>
-                  Your cart is
-                  empty
-                </h3>
-
-                <p>
-                  Add some products
-                  to get started.
-                </p>
-
-                <button
-                  className="primary-btn"
-                  onClick={() =>
-                    setShowCart(
-                      false
-                    )
-                  }
-                >
-                  Continue Shopping
-                </button>
-
-              </div>
-
-            ) : (
-
-              <>
-
-                <div className="cart-items">
-
-                  {cart.map(
-                    (item) => (
-                      <div
-                        className="cart-item"
-                        key={
-                          item._id
-                        }
-                      >
-
-                        <div className="cart-item-icon">
-                          {item.icon ||
-                            "🛍️"}
-                        </div>
-
-                        <div className="cart-item-info">
-
-                          <h3>
-                            {
-                              item.name
-                            }
-                          </h3>
-
-                          <p>
-                            {formatPrice(
-                              item.price
-                            )}
-                          </p>
-
-                          <div className="quantity-controls">
-
-                            <button
-                              onClick={() =>
-                                changeQuantity(
-                                  item._id,
-                                  -1
-                                )
-                              }
-                            >
-                              −
-                            </button>
-
-                            <span>
-                              {item.quantity ||
-                                1}
-                            </span>
-
-                            <button
-                              onClick={() =>
-                                changeQuantity(
-                                  item._id,
-                                  1
-                                )
-                              }
-                            >
-                              +
-                            </button>
-
-                          </div>
-
-                        </div>
-
-                        <button
-                          className="remove-btn"
-                          onClick={() =>
-                            removeFromCart(
-                              item._id
-                            )
-                          }
-                        >
-                          Remove
-                        </button>
-
-                      </div>
-                    )
-                  )}
-
-                </div>
-
-                <div className="cart-summary">
-
-                  <div className="cart-total">
-
-                    <span>
-                      Total
-                    </span>
-
-                    <strong>
-                      {formatPrice(
-                        cartTotal
-                      )}
-                    </strong>
-
-                  </div>
-
-                  <button
-                    className="checkout-btn"
-                    onClick={() =>
-                      alert(
-                        "Checkout will be connected in the next step."
-                      )
-                    }
-                  >
-                    Proceed to
-                    Checkout
-                  </button>
-
-                </div>
-
-              </>
-
-            )}
 
           </div>
 
-        </div>
-      )}
+        )}
+
+
+      {/* =================================================
+          ADMIN PRODUCT PANEL
+      ================================================= */}
+
+      {showAdminPanel &&
+        user?.role ===
+          "admin" && (
+
+          <div
+            className="modal-overlay admin-overlay"
+            onClick={() =>
+              setShowAdminPanel(
+                false
+              )
+            }
+          >
+
+            <div
+              className="admin-modal-container"
+              onClick={(event) =>
+                event.stopPropagation()
+              }
+            >
+
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() =>
+                  setShowAdminPanel(
+                    false
+                  )
+                }
+              >
+                ✕
+              </button>
+
+
+              <AdminPanel
+                products={
+                  products
+                }
+                token={
+                  token
+                }
+                apiUrl={
+                  API_URL
+                }
+                onProductAdded={
+                  handleProductAdded
+                }
+                onProductUpdated={
+                  handleProductUpdated
+                }
+                onProductDeleted={
+                  handleProductDeleted
+                }
+                onRefresh={
+                  loadProducts
+                }
+              />
+
+            </div>
+
+          </div>
+
+        )}
+
+
+           {/* =================================================
+          ADMIN ORDERS
+      ================================================= */}
+
+      {showAdminOrders &&
+        user?.role === "admin" && (
+
+          <AdminOrders
+            user={user}
+            token={token}
+            apiUrl={API_URL}
+            onClose={() => {
+              setShowAdminOrders(false);
+            }}
+          />
+
+        )}
+
 
       {/* =================================================
           FOOTER
       ================================================= */}
 
-      <footer>
+      <footer className="footer">
 
         <div className="footer-content">
 
-          <div>
-            <h3>
-              🛍️ ShopMind AI
-            </h3>
+          {/* FOOTER BRAND */}
+
+          <div className="footer-brand">
+
+            <div className="footer-logo">
+
+              <span>
+                🛍️
+              </span>
+
+              <h3>
+                ShopMind AI
+              </h3>
+
+            </div>
+
 
             <p>
-              AI-powered shopping
-              made simple.
+              AI-powered shopping made
+              simple.
             </p>
+
           </div>
 
-          <div>
-            <p>
-              © 2026 ShopMind AI.
-              All rights reserved.
-            </p>
+
+          {/* FOOTER LINKS */}
+
+          <div className="footer-links">
+
+            <button
+              type="button"
+              onClick={() =>
+                scrollToSection(
+                  "home"
+                )
+              }
+            >
+              Home
+            </button>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                scrollToSection(
+                  "products"
+                )
+              }
+            >
+              Products
+            </button>
+
+
+            <button
+              type="button"
+              onClick={() => {
+
+                setShowAIAssistant(
+                  true
+                );
+
+
+                window.setTimeout(
+                  () => {
+
+                    scrollToSection(
+                      "ai-shopping"
+                    );
+
+                  },
+                  100
+                );
+
+              }}
+            >
+              AI Search
+            </button>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowWishlist(
+                  true
+                )
+              }
+            >
+              Wishlist
+            </button>
+
           </div>
 
         </div>
+
+
+        <p className="footer-copyright">
+          © 2026 ShopMind AI. All
+          rights reserved.
+        </p>
 
       </footer>
 
     </div>
   );
 }
+
 
 export default App;

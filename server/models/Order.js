@@ -1,97 +1,157 @@
 const mongoose = require("mongoose");
 
+// =========================================================
+// ORDER ITEM SCHEMA
+// =========================================================
+
 const orderItemSchema = new mongoose.Schema({
+  // Product reference
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true,
   },
 
+  // Product name at the time of purchase
   name: {
     type: String,
     required: true,
+    trim: true,
   },
 
+  // Product price at the time of purchase
   price: {
     type: Number,
     required: true,
+    min: 0,
   },
 
+  // Quantity purchased
   quantity: {
     type: Number,
     required: true,
     min: 1,
   },
 
+  // Product emoji fallback
   icon: {
     type: String,
     default: "📦",
   },
+
+  // =====================================================
+  // PRODUCT IMAGE
+  // Stores the product image URL with the order
+  // =====================================================
+
+  image: {
+    type: String,
+    default: "",
+    trim: true,
+  },
 });
+
+// =========================================================
+// ORDER SCHEMA
+// =========================================================
 
 const orderSchema = new mongoose.Schema(
   {
-    // User who placed the order
+    // =====================================================
+    // USER WHO PLACED THE ORDER
+    // =====================================================
+
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    // Products in the order
+    // =====================================================
+    // PRODUCTS IN THE ORDER
+    // =====================================================
+
     items: {
       type: [orderItemSchema],
       required: true,
+      validate: {
+        validator: function (items) {
+          return (
+            Array.isArray(items) &&
+            items.length > 0
+          );
+        },
+        message:
+          "Order must contain at least one product.",
+      },
     },
 
-    // Delivery information
+    // =====================================================
+    // DELIVERY INFORMATION
+    // =====================================================
+
     shippingAddress: {
       fullName: {
         type: String,
         required: true,
+        trim: true,
       },
 
       phone: {
         type: String,
         required: true,
+        trim: true,
       },
 
       address: {
         type: String,
         required: true,
+        trim: true,
       },
 
       city: {
         type: String,
         required: true,
+        trim: true,
       },
 
       state: {
         type: String,
         required: true,
+        trim: true,
       },
 
       pincode: {
         type: String,
         required: true,
+        trim: true,
       },
     },
 
-    // Payment method
+    // =====================================================
+    // PAYMENT METHOD
+    // =====================================================
+
     paymentMethod: {
       type: String,
       enum: ["COD"],
       default: "COD",
     },
 
-    // Total amount
+    // =====================================================
+    // TOTAL AMOUNT
+    // =====================================================
+
     totalAmount: {
       type: Number,
       required: true,
       min: 0,
     },
 
-    // Order status
+    // =====================================================
+    // ORDER STATUS
+    // =====================================================
+
     status: {
       type: String,
       enum: [
@@ -104,7 +164,10 @@ const orderSchema = new mongoose.Schema(
       default: "Placed",
     },
 
-    // Payment status
+    // =====================================================
+    // PAYMENT STATUS
+    // =====================================================
+
     paymentStatus: {
       type: String,
       enum: [
@@ -119,6 +182,10 @@ const orderSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// =========================================================
+// ORDER MODEL
+// =========================================================
 
 const Order = mongoose.model(
   "Order",

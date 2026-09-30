@@ -1,6 +1,4 @@
-import { useState } from "react";
-
-import API_URL from "./api";
+import { useMemo, useState } from "react";
 
 import {
   INDIAN_STATES,
@@ -11,62 +9,37 @@ import {
 // CHECKOUT MODAL
 // =====================================================
 
-function CheckoutModal({
-  cart,
-  user,
+export default function CheckoutModal({
+  isOpen,
   onClose,
+  cart = [],
+  token,
+  apiUrl,
   onOrderSuccess,
 }) {
-  // ===================================================
-  // GET SAVED USER
-  // ===================================================
+  // =====================================================
+  // DELIVERY FORM
+  // =====================================================
 
-  let savedUser = null;
+  const [form, setForm] = useState({
+    fullName: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
 
-  try {
-    const storedUser =
-      localStorage.getItem(
-        "shopmindUser"
-      );
+  // =====================================================
+  // PAYMENT
+  // =====================================================
 
-    if (storedUser) {
-      savedUser =
-        JSON.parse(storedUser);
-    }
-  } catch (error) {
-    console.error(
-      "Could not read saved user:",
-      error
-    );
-  }
+  const [paymentMethod, setPaymentMethod] =
+    useState("COD");
 
-  const currentUser =
-    user || savedUser;
-
-  // ===================================================
-  // FORM
-  // ===================================================
-
-  const [form, setForm] =
-    useState({
-      fullName:
-        currentUser?.name || "",
-
-      phone:
-        currentUser?.phone || "",
-
-      address:
-        currentUser?.address || "",
-
-      city:
-        currentUser?.city || "",
-
-      state:
-        currentUser?.state || "",
-
-      pincode:
-        currentUser?.pincode || "",
-    });
+  // =====================================================
+  // LOADING / ERROR
+  // =====================================================
 
   const [loading, setLoading] =
     useState(false);
@@ -74,260 +47,300 @@ function CheckoutModal({
   const [error, setError] =
     useState("");
 
-  const [success, setSuccess] =
-    useState("");
+  // =====================================================
+  // AVAILABLE CITIES
+  // =====================================================
 
-  const [orderId, setOrderId] =
-    useState("");
+  const availableCities = useMemo(() => {
+    return getCitiesByState(form.state);
+  }, [form.state]);
 
-  const [
-    confirmedTotal,
-    setConfirmedTotal,
-  ] = useState(0);
+  // =====================================================
+  // TOTAL
+  // =====================================================
 
-  // ===================================================
-  // CALCULATE CART TOTAL
-  // ===================================================
-
-  const totalAmount =
-    cart.reduce(
-      (total, item) =>
-        total +
-        Number(item.price) *
-          (item.quantity || 1),
+  const total = useMemo(() => {
+    return cart.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.price || 0) *
+          Number(item.quantity || 1),
       0
     );
+  }, [cart]);
 
-  // ===================================================
-  // AVAILABLE CITIES
-  // ===================================================
+  // =====================================================
+  // TOTAL ITEMS
+  // =====================================================
 
-  const availableCities =
-    getCitiesByState(
-      form.state
+  const totalItems = useMemo(() => {
+    return cart.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.quantity || 1),
+      0
     );
+  }, [cart]);
 
-  // ===================================================
-  // INPUT CHANGE
-  // ===================================================
+  // =====================================================
+  // DO NOT SHOW WHEN CLOSED
+  // =====================================================
 
-  const handleChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+  if (!isOpen) {
+    return null;
+  }
 
-    let newValue = value;
+  // =====================================================
+  // FORMAT PRICE
+  // =====================================================
 
-    // Phone number:
-    // only digits, maximum 10
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(price || 0));
+  };
 
+  // =====================================================
+  // PRODUCT ID
+  // =====================================================
+
+  const getProductId = (item) => {
+    return (
+      item?._id ||
+      item?.id ||
+      item?.product
+    );
+  };
+
+  // =====================================================
+  // NORMAL FORM CHANGE
+  // =====================================================
+
+  const handleChange = (event) => {
+    const { name, value } =
+      event.target;
+
+    // Only allow digits in phone
     if (name === "phone") {
-      newValue = value
-        .replace(/\D/g, "")
-        .slice(0, 10);
+      const numbersOnly =
+        value.replace(/\D/g, "");
+
+      setForm((current) => ({
+        ...current,
+        phone: numbersOnly.slice(0, 10),
+      }));
+
+      setError("");
+      return;
     }
 
-    // PIN code:
-    // only digits, maximum 6
-
+    // Only allow digits in pincode
     if (name === "pincode") {
-      newValue = value
-        .replace(/\D/g, "")
-        .slice(0, 6);
+      const numbersOnly =
+        value.replace(/\D/g, "");
+
+      setForm((current) => ({
+        ...current,
+        pincode: numbersOnly.slice(0, 6),
+      }));
+
+      setError("");
+      return;
     }
 
-    setForm(
-      (current) => ({
-        ...current,
-        [name]: newValue,
-      })
-    );
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
 
     setError("");
   };
 
-  // ===================================================
+  // =====================================================
   // STATE CHANGE
-  // ===================================================
+  // =====================================================
 
-  const handleStateChange = (e) => {
-    const newState =
-      e.target.value;
+  const handleStateChange = (event) => {
+    const selectedState =
+      event.target.value;
 
-    setForm(
-      (current) => ({
-        ...current,
+    setForm((current) => ({
+      ...current,
+      state: selectedState,
 
-        state: newState,
-
-        // Reset city whenever
-        // state changes
-
-        city: "",
-      })
-    );
+      // Important:
+      // Reset city when state changes.
+      city: "",
+    }));
 
     setError("");
   };
 
-  // ===================================================
+  // =====================================================
+  // PRODUCT IMAGE ERROR
+  // =====================================================
+
+  const handleImageError = (event) => {
+    const image =
+      event.currentTarget;
+
+    image.style.display = "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display =
+        "flex";
+    }
+  };
+
+  // =====================================================
+  // VALIDATE DELIVERY DETAILS
+  // =====================================================
+
+  const validateForm = () => {
+    if (
+      !form.fullName.trim() ||
+      !form.phone.trim() ||
+      !form.address.trim() ||
+      !form.city.trim() ||
+      !form.state.trim() ||
+      !form.pincode.trim()
+    ) {
+      return "Please complete all delivery details.";
+    }
+
+    const phone =
+      form.phone.replace(/\D/g, "");
+
+    if (phone.length !== 10) {
+      return "Please enter a valid 10-digit phone number.";
+    }
+
+    const pincode =
+      form.pincode.replace(/\D/g, "");
+
+    if (pincode.length !== 6) {
+      return "Please enter a valid 6-digit pincode.";
+    }
+
+    // Make sure selected state exists
+    if (
+      !INDIAN_STATES.includes(
+        form.state
+      )
+    ) {
+      return "Please select a valid state.";
+    }
+
+    // Make sure selected city belongs
+    // to selected state
+    if (
+      !getCitiesByState(
+        form.state
+      ).includes(form.city)
+    ) {
+      return "Please select a valid city for the selected state.";
+    }
+
+    if (cart.length === 0) {
+      return "Your cart is empty.";
+    }
+
+    if (!token) {
+      return "Please login before placing your order.";
+    }
+
+    return null;
+  };
+
+  // =====================================================
   // PLACE ORDER
-  // ===================================================
+  // =====================================================
 
   const handleSubmit = async (
-    e
+    event
   ) => {
-    e.preventDefault();
+    event.preventDefault();
 
     setError("");
-    setSuccess("");
 
-    // =====================================
-    // CHECK LOGIN SESSION
-    // =====================================
+    const validationError =
+      validateForm();
 
-    const token =
-      localStorage.getItem(
-        "shopmindToken"
-      );
-
-    const storedUser =
-      localStorage.getItem(
-        "shopmindUser"
-      );
-
-    if (!token || !storedUser) {
-      setError(
-        "Please login before placing your order."
-      );
-
+    if (validationError) {
+      setError(validationError);
       return;
     }
-
-    // =====================================
-    // CHECK CART
-    // =====================================
-
-    if (
-      !cart ||
-      cart.length === 0
-    ) {
-      setError(
-        "Your cart is empty."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // FULL NAME
-    // =====================================
-
-    if (
-      !form.fullName.trim()
-    ) {
-      setError(
-        "Please enter your full name."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // PHONE NUMBER
-    // =====================================
-
-    if (
-      !form.phone.trim()
-    ) {
-      setError(
-        "Please enter your phone number."
-      );
-
-      return;
-    }
-
-    if (
-      !/^[0-9]{10}$/.test(
-        form.phone.trim()
-      )
-    ) {
-      setError(
-        "Please enter a valid 10-digit phone number."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // ADDRESS
-    // =====================================
-
-    if (
-      !form.address.trim()
-    ) {
-      setError(
-        "Please enter your delivery address."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // STATE
-    // =====================================
-
-    if (
-      !form.state.trim()
-    ) {
-      setError(
-        "Please select your state / union territory."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // CITY
-    // =====================================
-
-    if (
-      !form.city.trim()
-    ) {
-      setError(
-        "Please select your city."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // PINCODE
-    // =====================================
-
-    if (
-      !/^[0-9]{6}$/.test(
-        form.pincode.trim()
-      )
-    ) {
-      setError(
-        "Please enter a valid 6-digit PIN code."
-      );
-
-      return;
-    }
-
-    // =====================================
-    // SEND ORDER TO BACKEND
-    // =====================================
 
     try {
       setLoading(true);
 
+      // =================================================
+      // ORDER ITEMS
+      // =================================================
+
+      const orderItems =
+        cart.map((item) => ({
+          product:
+            getProductId(item),
+
+          name:
+            item.name,
+
+          price:
+            Number(
+              item.price || 0
+            ),
+
+          quantity:
+            Number(
+              item.quantity || 1
+            ),
+        }));
+
+      // =================================================
+      // ORDER DATA
+      // =================================================
+
+      const orderData = {
+        items: orderItems,
+
+        shippingAddress: {
+          fullName:
+            form.fullName.trim(),
+
+          phone:
+            form.phone.trim(),
+
+          address:
+            form.address.trim(),
+
+          city:
+            form.city.trim(),
+
+          state:
+            form.state.trim(),
+
+          pincode:
+            form.pincode.trim(),
+        },
+
+        paymentMethod,
+
+        totalAmount: total,
+      };
+
+      // =================================================
+      // SEND ORDER TO BACKEND
+      // =================================================
+
       const response =
         await fetch(
-          `${API_URL}/api/orders`,
+          `${apiUrl}/api/orders`,
           {
             method: "POST",
 
@@ -340,60 +353,11 @@ function CheckoutModal({
             },
 
             body:
-              JSON.stringify({
-                // =========================
-                // CART ITEMS
-                // =========================
-
-                items:
-                  cart.map(
-                    (item) => ({
-                      product:
-                        item._id,
-
-                      quantity:
-                        item.quantity ||
-                        1,
-                    })
-                  ),
-
-                // =========================
-                // SHIPPING ADDRESS
-                // =========================
-
-                shippingAddress: {
-                  fullName:
-                    form.fullName.trim(),
-
-                  phone:
-                    form.phone.trim(),
-
-                  address:
-                    form.address.trim(),
-
-                  city:
-                    form.city.trim(),
-
-                  state:
-                    form.state.trim(),
-
-                  pincode:
-                    form.pincode.trim(),
-                },
-
-                // =========================
-                // PAYMENT
-                // =========================
-
-                paymentMethod:
-                  "COD",
-              }),
+              JSON.stringify(
+                orderData
+              ),
           }
         );
-
-      // =====================================
-      // READ SERVER RESPONSE
-      // =====================================
 
       let data;
 
@@ -402,61 +366,50 @@ function CheckoutModal({
           await response.json();
       } catch {
         throw new Error(
-          "Invalid response from server."
+          "Invalid response received from the server."
         );
       }
 
-      // =====================================
-      // BACKEND ERROR
-      // =====================================
-
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Could not place your order."
+          data?.message ||
+            "Unable to place order."
         );
       }
 
-      // =====================================
-      // ORDER SUCCESS
-      // =====================================
+      // =================================================
+      // CREATED ORDER
+      // =================================================
 
       const createdOrder =
-        data.order;
+        data?.order ||
+        data?.data ||
+        data;
 
-      // Save order ID
+      // =================================================
+      // RESET FORM
+      // =================================================
 
-      setOrderId(
-        createdOrder?._id || ""
-      );
+      setForm({
+        fullName: "",
+        phone: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+      });
 
-      // Save total before
-      // App.jsx clears cart
+      setPaymentMethod("COD");
 
-      setConfirmedTotal(
-        Number(
-          createdOrder?.totalAmount
-        ) || totalAmount
-      );
-
-      setSuccess(
-        "🎉 Your order has been placed successfully!"
-      );
-
-      setError("");
-
-      // =====================================
-      // NOTIFY APP.JSX
-      // =====================================
+      // =================================================
+      // SUCCESS CALLBACK
+      // =================================================
 
       if (
         typeof onOrderSuccess ===
         "function"
       ) {
-        onOrderSuccess(
+        await onOrderSuccess(
           createdOrder
         );
       }
@@ -466,502 +419,572 @@ function CheckoutModal({
         err
       );
 
-      setSuccess("");
-
-      if (
-        err instanceof TypeError
-      ) {
-        setError(
-          "Cannot connect to the server. Please try again."
-        );
-      } else {
-        setError(
-          err.message ||
-            "Could not place your order."
-        );
-      }
+      setError(
+        err.message ||
+          "Something went wrong while placing the order."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // ===================================================
-  // COMPONENT
-  // ===================================================
+  // =====================================================
+  // JSX
+  // =====================================================
 
   return (
     <div
       className="modal-overlay"
-      onClick={
-        success
-          ? undefined
-          : onClose
-      }
+      onClick={() => {
+        if (!loading) {
+          onClose();
+        }
+      }}
     >
       <div
         className="checkout-modal"
-        onClick={(e) =>
-          e.stopPropagation()
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {/* =================================
-            SUCCESS SCREEN
-        ================================= */}
+        {/* =============================================
+            CLOSE BUTTON
+        ============================================= */}
 
-        {success ? (
-          <div className="checkout-success">
-            <div
-              style={{
-                fontSize: "70px",
-                marginBottom: "15px",
-              }}
-            >
-              ✅
-            </div>
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          aria-label="Close checkout"
+        >
+          ✕
+        </button>
 
+        {/* =============================================
+            HEADER
+        ============================================= */}
+
+        <div className="checkout-header">
+          <span>🛍️</span>
+
+          <div>
             <h2>
-              Order Confirmed!
+              Checkout
             </h2>
 
             <p>
-              {success}
+              Complete your delivery
+              information.
             </p>
+          </div>
+        </div>
 
-            {/* ORDER ID */}
+        {/* =============================================
+            ERROR
+        ============================================= */}
 
-            {orderId && (
-              <div className="order-id-box">
-                <small>
-                  Order ID
-                </small>
+        {error && (
+          <div className="auth-message auth-error">
+            ⚠️ {error}
+          </div>
+        )}
 
-                <strong>
-                  {orderId}
-                </strong>
-              </div>
-            )}
+        {/* =============================================
+            CHECKOUT FORM
+        ============================================= */}
 
-            {/* ORDER TOTAL */}
+        <form
+          className="checkout-form"
+          onSubmit={handleSubmit}
+        >
+          {/* ===========================================
+              DELIVERY DETAILS
+          =========================================== */}
 
-            <div className="success-total">
+          <div className="checkout-section-title">
+            <div>
               <span>
-                Order Total
+                📍
               </span>
 
-              <strong>
-                ₹
-                {confirmedTotal.toLocaleString(
-                  "en-IN"
-                )}
-              </strong>
+              <div>
+                <h3>
+                  Delivery Details
+                </h3>
+
+                <p>
+                  Where should we
+                  deliver your order?
+                </p>
+              </div>
             </div>
-
-            {/* PAYMENT */}
-
-            <div className="payment-info">
-              💵 Payment: Cash on Delivery
-            </div>
-
-            {/* NOTIFICATION INFO */}
-
-            <div
-              style={{
-                marginTop: "15px",
-                padding: "12px",
-                borderRadius: "10px",
-                background: "#f0fdf4",
-                color: "#15803d",
-                textAlign: "center",
-              }}
-            >
-              📱 Order notification prepared for{" "}
-
-              <strong>
-                {form.phone}
-              </strong>
-            </div>
-
-            {/* CONTINUE */}
-
-            <button
-              type="button"
-              className="checkout-submit-btn"
-              onClick={onClose}
-            >
-              Continue Shopping
-            </button>
           </div>
-        ) : (
-          <>
-            {/* =================================
-                CLOSE BUTTON
-            ================================= */}
 
-            <button
-              type="button"
-              className="close-btn"
-              onClick={onClose}
-            >
-              ✕
-            </button>
+          <div className="checkout-form-grid">
 
-            {/* =================================
-                HEADER
-            ================================= */}
+            {/* =========================================
+                FULL NAME
+            ========================================= */}
 
-            <div className="checkout-header">
-              <div
-                style={{
-                  fontSize: "45px",
-                }}
-              >
-                📦
-              </div>
+            <div>
+              <label htmlFor="checkout-name">
+                Full Name
+              </label>
 
-              <h2>
-                Checkout
-              </h2>
-
-              <p>
-                Enter your delivery
-                details to place your
-                order.
-              </p>
+              <input
+                id="checkout-name"
+                name="fullName"
+                type="text"
+                value={
+                  form.fullName
+                }
+                onChange={
+                  handleChange
+                }
+                placeholder="Enter your full name"
+                disabled={
+                  loading
+                }
+                autoComplete="name"
+                required
+              />
             </div>
 
-            {/* =================================
-                ERROR MESSAGE
-            ================================= */}
+            {/* =========================================
+                PHONE
+            ========================================= */}
 
-            {error && (
-              <div
-                style={{
-                  background:
-                    "#fef2f2",
+            <div>
+              <label htmlFor="checkout-phone">
+                Phone Number
+              </label>
 
-                  color:
-                    "#dc2626",
+              <input
+                id="checkout-phone"
+                name="phone"
+                type="tel"
+                inputMode="numeric"
+                value={
+                  form.phone
+                }
+                onChange={
+                  handleChange
+                }
+                placeholder="10-digit phone number"
+                disabled={
+                  loading
+                }
+                autoComplete="tel"
+                maxLength={10}
+                required
+              />
+            </div>
 
-                  padding:
-                    "12px",
+            {/* =========================================
+                ADDRESS
+            ========================================= */}
 
-                  borderRadius:
-                    "10px",
+            <div className="checkout-full-width">
+              <label htmlFor="checkout-address">
+                Delivery Address
+              </label>
 
-                  marginBottom:
-                    "20px",
+              <textarea
+                id="checkout-address"
+                name="address"
+                value={
+                  form.address
+                }
+                onChange={
+                  handleChange
+                }
+                placeholder="House number, street, area, landmark..."
+                disabled={
+                  loading
+                }
+                autoComplete="street-address"
+                required
+                rows={3}
+              />
+            </div>
 
-                  textAlign:
-                    "center",
-                }}
+            {/* =========================================
+                STATE DROPDOWN
+            ========================================= */}
+
+            <div>
+              <label htmlFor="checkout-state">
+                State
+              </label>
+
+              <select
+                id="checkout-state"
+                name="state"
+                value={
+                  form.state
+                }
+                onChange={
+                  handleStateChange
+                }
+                disabled={
+                  loading
+                }
+                autoComplete="address-level1"
+                required
               >
-                {error}
+                <option value="">
+                  Select State / UT
+                </option>
+
+                {INDIAN_STATES.map(
+                  (state) => (
+                    <option
+                      key={state}
+                      value={state}
+                    >
+                      {state}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            {/* =========================================
+                CITY DROPDOWN
+            ========================================= */}
+
+            <div>
+              <label htmlFor="checkout-city">
+                City
+              </label>
+
+              <select
+                id="checkout-city"
+                name="city"
+                value={
+                  form.city
+                }
+                onChange={
+                  handleChange
+                }
+                disabled={
+                  loading ||
+                  !form.state
+                }
+                autoComplete="address-level2"
+                required
+              >
+                <option value="">
+                  {form.state
+                    ? "Select City"
+                    : "Select State First"}
+                </option>
+
+                {availableCities.map(
+                  (city) => (
+                    <option
+                      key={city}
+                      value={city}
+                    >
+                      {city}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            {/* =========================================
+                PINCODE
+            ========================================= */}
+
+            <div>
+              <label htmlFor="checkout-pincode">
+                Pincode
+              </label>
+
+              <input
+                id="checkout-pincode"
+                name="pincode"
+                type="text"
+                inputMode="numeric"
+                value={
+                  form.pincode
+                }
+                onChange={
+                  handleChange
+                }
+                placeholder="6-digit pincode"
+                disabled={
+                  loading
+                }
+                autoComplete="postal-code"
+                maxLength={6}
+                required
+              />
+            </div>
+          </div>
+
+          {/* ===========================================
+              PAYMENT METHOD
+          =========================================== */}
+
+          <div className="payment-section">
+            <h3>
+              💳 Payment Method
+            </h3>
+
+            <label className="payment-option">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="COD"
+                checked={
+                  paymentMethod ===
+                  "COD"
+                }
+                onChange={(event) =>
+                  setPaymentMethod(
+                    event.target.value
+                  )
+                }
+                disabled={
+                  loading
+                }
+              />
+
+              <div className="payment-option-content">
+                <span className="payment-icon">
+                  💵
+                </span>
+
+                <div>
+                  <strong>
+                    Cash on Delivery
+                  </strong>
+
+                  <small>
+                    Pay when your
+                    order arrives
+                  </small>
+                </div>
               </div>
-            )}
+            </label>
+          </div>
 
-            {/* =================================
-                ORDER SUMMARY
-            ================================= */}
+          {/* ===========================================
+              ORDER SUMMARY
+          =========================================== */}
 
-            <div className="checkout-summary">
-              <h3>
-                🛒 Order Summary
-              </h3>
+          <div className="checkout-summary">
+            <div className="checkout-summary-header">
+              <div>
+                <h3>
+                  🛒 Order Summary
+                </h3>
 
+                <p>
+                  {totalItems}{" "}
+                  {totalItems === 1
+                    ? "item"
+                    : "items"}{" "}
+                  in your order
+                </p>
+              </div>
+            </div>
+
+            {/* =========================================
+                PRODUCTS
+            ========================================= */}
+
+            <div className="checkout-products">
               {cart.map(
-                (item) => (
-                  <div
-                    className="checkout-item"
-                    key={item._id}
-                  >
-                    <span>
-                      {item.icon ||
-                        "📦"}{" "}
-                      {item.name}
-                    </span>
+                (item, index) => {
+                  const productId =
+                    getProductId(
+                      item
+                    );
 
-                    <span>
-                      {item.quantity ||
-                        1}{" "}
-                      × ₹
-                      {Number(
-                        item.price
-                      ).toLocaleString(
-                        "en-IN"
-                      )}
-                    </span>
-                  </div>
-                )
+                  const quantity =
+                    Number(
+                      item.quantity ||
+                        1
+                    );
+
+                  const price =
+                    Number(
+                      item.price ||
+                        0
+                    );
+
+                  const itemTotal =
+                    price *
+                    quantity;
+
+                  return (
+                    <div
+                      className="checkout-item checkout-item-with-image"
+                      key={
+                        productId ||
+                        index
+                      }
+                    >
+                      {/* ===============================
+                          PRODUCT IMAGE
+                      =============================== */}
+
+                      <div className="checkout-product-image-box">
+                        {item.image ? (
+                          <img
+                            src={
+                              item.image
+                            }
+                            alt={
+                              item.name ||
+                              "Product"
+                            }
+                            className="checkout-product-image"
+                            loading="lazy"
+                            onError={
+                              handleImageError
+                            }
+                          />
+                        ) : null}
+
+                        <span
+                          className="checkout-product-image-fallback"
+                          style={{
+                            display:
+                              item.image
+                                ? "none"
+                                : "flex",
+                          }}
+                        >
+                          {item.icon ||
+                            "🛍️"}
+                        </span>
+                      </div>
+
+                      {/* ===============================
+                          PRODUCT INFO
+                      =============================== */}
+
+                      <div className="checkout-product-info">
+                        <strong className="checkout-product-name">
+                          {item.name}
+                        </strong>
+
+                        <span className="checkout-product-category">
+                          {item.category ||
+                            "Product"}
+                        </span>
+
+                        <div className="checkout-product-meta">
+                          <span>
+                            {formatPrice(
+                              price
+                            )}
+                          </span>
+
+                          <span>
+                            ×
+                          </span>
+
+                          <span>
+                            {quantity}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ===============================
+                          PRODUCT TOTAL
+                      =============================== */}
+
+                      <strong className="checkout-item-total">
+                        {formatPrice(
+                          itemTotal
+                        )}
+                      </strong>
+                    </div>
+                  );
+                }
               )}
+            </div>
 
-              <div className="checkout-total">
+            {/* =========================================
+                TOTAL
+            ========================================= */}
+
+            <div className="checkout-total">
+              <div>
                 <span>
-                  Total
+                  Total Items
                 </span>
 
                 <strong>
-                  ₹
-                  {totalAmount.toLocaleString(
-                    "en-IN"
+                  {totalItems}
+                </strong>
+              </div>
+
+              <div className="checkout-grand-total">
+                <span>
+                  Order Total
+                </span>
+
+                <strong>
+                  {formatPrice(
+                    total
                   )}
                 </strong>
               </div>
             </div>
+          </div>
 
-            {/* =================================
-                DELIVERY FORM
-            ================================= */}
+          {/* ===========================================
+              PLACE ORDER
+          =========================================== */}
 
-            <form
-              className="checkout-form"
-              onSubmit={
-                handleSubmit
-              }
-            >
-              <h3>
-                🚚 Delivery Details
-              </h3>
+          <button
+            className="checkout-button"
+            type="submit"
+            disabled={
+              loading ||
+              cart.length === 0
+            }
+          >
+            {loading
+              ? "⏳ Placing Order..."
+              : `Place Order • ${formatPrice(
+                  total
+                )}`}
+          </button>
 
-              {/* FULL NAME */}
+          {/* ===========================================
+              BACK TO CART
+          =========================================== */}
 
-              <label>
-                Full Name
+          <button
+            className="continue-shopping-button"
+            type="button"
+            onClick={onClose}
+            disabled={
+              loading
+            }
+          >
+            ← Back to Cart
+          </button>
 
-                <input
-                  type="text"
-                  name="fullName"
-                  value={
-                    form.fullName
-                  }
-                  onChange={
-                    handleChange
-                  }
-                  placeholder="Enter your full name"
-                  disabled={
-                    loading
-                  }
-                  required
-                />
-              </label>
+          {/* ===========================================
+              SECURITY MESSAGE
+          =========================================== */}
 
-              {/* PHONE */}
-
-              <label>
-                Phone Number
-
-                <input
-                  type="tel"
-                  name="phone"
-                  value={
-                    form.phone
-                  }
-                  onChange={
-                    handleChange
-                  }
-                  placeholder="10-digit phone number"
-                  maxLength={10}
-                  inputMode="numeric"
-                  disabled={
-                    loading
-                  }
-                  required
-                />
-              </label>
-
-              {/* ADDRESS */}
-
-              <label>
-                Delivery Address
-
-                <textarea
-                  name="address"
-                  value={
-                    form.address
-                  }
-                  onChange={
-                    handleChange
-                  }
-                  placeholder="House / Flat, Street, Area..."
-                  rows={3}
-                  disabled={
-                    loading
-                  }
-                  required
-                />
-              </label>
-
-              {/* =================================
-                  STATE + CITY
-              ================================= */}
-
-              <div className="checkout-row">
-                {/* STATE */}
-
-                <label>
-                  State / Union Territory
-
-                  <select
-                    name="state"
-                    value={
-                      form.state
-                    }
-                    onChange={
-                      handleStateChange
-                    }
-                    disabled={
-                      loading
-                    }
-                    required
-                  >
-                    <option value="">
-                      Select state / UT
-                    </option>
-
-                    {INDIAN_STATES.map(
-                      (state) => (
-                        <option
-                          key={state}
-                          value={state}
-                        >
-                          {state}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </label>
-
-                {/* CITY */}
-
-                <label>
-                  City
-
-                  <select
-                    name="city"
-                    value={
-                      form.city
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    disabled={
-                      loading ||
-                      !form.state
-                    }
-                    required
-                  >
-                    <option value="">
-                      {form.state
-                        ? "Select your city"
-                        : "Select state first"}
-                    </option>
-
-                    {/* Keep an existing saved city
-                        if it isn't in our current
-                        static city list. */}
-
-                    {form.city &&
-                      !availableCities.includes(
-                        form.city
-                      ) && (
-                        <option
-                          value={
-                            form.city
-                          }
-                        >
-                          {form.city}
-                        </option>
-                      )}
-
-                    {availableCities.map(
-                      (city) => (
-                        <option
-                          key={city}
-                          value={city}
-                        >
-                          {city}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </label>
-              </div>
-
-              {/* PINCODE */}
-
-              <label>
-                PIN Code
-
-                <input
-                  type="text"
-                  name="pincode"
-                  value={
-                    form.pincode
-                  }
-                  onChange={
-                    handleChange
-                  }
-                  placeholder="6-digit PIN code"
-                  maxLength={6}
-                  inputMode="numeric"
-                  disabled={
-                    loading
-                  }
-                  required
-                />
-              </label>
-
-              {/* =================================
-                  PAYMENT METHOD
-              ================================= */}
-
-              <div className="payment-method">
-                <h3>
-                  💳 Payment Method
-                </h3>
-
-                <div className="payment-option">
-                  <input
-                    type="radio"
-                    checked
-                    readOnly
-                  />
-
-                  <div>
-                    <strong>
-                      Cash on Delivery
-                    </strong>
-
-                    <p>
-                      Pay when your
-                      order is delivered.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* =================================
-                  PLACE ORDER BUTTON
-              ================================= */}
-
-              <button
-                type="submit"
-                className="checkout-submit-btn"
-                disabled={
-                  loading
-                }
-              >
-                {loading
-                  ? "Placing Order..."
-                  : `Place Order • ₹${totalAmount.toLocaleString(
-                      "en-IN"
-                    )}`}
-              </button>
-            </form>
-          </>
-        )}
+          <p className="checkout-security-text">
+            🔒 Your order information is
+            securely processed by
+            ShopMind AI.
+          </p>
+        </form>
       </div>
     </div>
   );
 }
-
-export default CheckoutModal;

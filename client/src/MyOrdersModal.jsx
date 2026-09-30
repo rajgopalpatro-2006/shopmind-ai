@@ -1,154 +1,136 @@
 import { useEffect, useState } from "react";
 
-import API_URL from "./api";
+export default function MyOrdersModal({
+  isOpen,
+  onClose,
+  token,
+  apiUrl,
+}) {
+  // =====================================================
+  // STATE
+  // =====================================================
 
-function MyOrdersModal({ onClose }) {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [cancellingId, setCancellingId] =
-    useState(null);
 
-  // =========================
+  const [cancellingOrderId, setCancellingOrderId] =
+    useState("");
+
+  // =====================================================
   // LOAD ORDERS
-  // =========================
+  // =====================================================
 
-  const loadOrders = async () => {
+  useEffect(() => {
+    if (!isOpen || !token) {
+      return;
+    }
+
+    fetchOrders();
+  }, [isOpen, token]);
+
+  // =====================================================
+  // FETCH MY ORDERS
+  // =====================================================
+
+  const fetchOrders = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem(
-        "shopmindToken"
-      );
-
-      if (!token) {
-        throw new Error(
-          "Please login again to view your orders."
-        );
-      }
-
       const response = await fetch(
-        `${API_URL}/api/orders/my-orders`,
+        `${apiUrl}/api/orders/my-orders`,
         {
+          method: "GET",
+
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      const data = await response.json();
+      let data;
 
-      if (!response.ok || !data.success) {
+      try {
+        data = await response.json();
+      } catch {
         throw new Error(
-          data.message ||
-            "Could not load your orders."
+          "Invalid response received from the server."
         );
       }
 
-      setOrders(data.orders || []);
-    } catch (error) {
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "Unable to load your orders."
+        );
+      }
+
+      // Supports different backend response styles
+      const orderList =
+        data?.orders ||
+        data?.data ||
+        data ||
+        [];
+
+      setOrders(
+        Array.isArray(orderList)
+          ? orderList
+          : []
+      );
+    } catch (err) {
       console.error(
         "Load orders error:",
-        error
+        err
       );
 
       setError(
-        error.message ||
-          "Could not load your orders."
+        err.message ||
+          "Something went wrong while loading your orders."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  // =====================================================
+  // FORMAT PRICE
+  // =====================================================
 
-  // =========================
-  // CANCEL ORDER
-  // =========================
-
-  const handleCancelOrder = async (
-    orderId
-  ) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this order?"
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat(
+      "en-IN",
+      {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+      }
+    ).format(
+      Number(price || 0)
     );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setCancellingId(orderId);
-      setError("");
-
-      const token = localStorage.getItem(
-        "shopmindToken"
-      );
-
-      if (!token) {
-        throw new Error(
-          "Please login again to cancel your order."
-        );
-      }
-
-      const response = await fetch(
-        `${API_URL}/api/orders/${orderId}/cancel`,
-        {
-          method: "PUT",
-
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Could not cancel order."
-        );
-      }
-
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order._id === orderId
-            ? data.order
-            : order
-        )
-      );
-    } catch (error) {
-      console.error(
-        "Cancel order error:",
-        error
-      );
-
-      setError(
-        error.message ||
-          "Could not cancel order."
-      );
-    } finally {
-      setCancellingId(null);
-    }
   };
 
-  // =========================
+  // =====================================================
   // FORMAT DATE
-  // =========================
+  // =====================================================
 
   const formatDate = (date) => {
     if (!date) {
-      return "N/A";
+      return "Date unavailable";
     }
 
-    return new Date(date).toLocaleString(
+    const parsedDate =
+      new Date(date);
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+      return "Date unavailable";
+    }
+
+    return parsedDate.toLocaleString(
       "en-IN",
       {
         day: "2-digit",
@@ -160,255 +142,420 @@ function MyOrdersModal({ onClose }) {
     );
   };
 
-  // =========================
-  // FORMAT PRICE
-  // =========================
+  // =====================================================
+  // SHORT ORDER ID
+  // =====================================================
 
-  const formatPrice = (price) => {
-    return Number(
-      price || 0
-    ).toLocaleString("en-IN");
-  };
-
-  // =========================
-  // STATUS CLASS
-  // =========================
-
-  const getStatusClass = (status) => {
-    switch (status) {
-      case "Placed":
-        return "status-placed";
-
-      case "Confirmed":
-        return "status-confirmed";
-
-      case "Shipped":
-        return "status-shipped";
-
-      case "Delivered":
-        return "status-delivered";
-
-      case "Cancelled":
-        return "status-cancelled";
-
-      default:
-        return "status-placed";
+  const getShortOrderId = (
+    orderId
+  ) => {
+    if (!orderId) {
+      return "N/A";
     }
-  };
 
-  // =========================
-  // CAN CANCEL?
-  // =========================
+    const id =
+      String(orderId);
 
-  const canCancelOrder = (status) => {
-    return (
-      status === "Placed" ||
-      status === "Confirmed"
-    );
-  };
-
-  // =========================
-  // ORDER TRACKER
-  // =========================
-
-  const orderSteps = [
-    {
-      name: "Placed",
-      icon: "✓",
-    },
-    {
-      name: "Confirmed",
-      icon: "✓",
-    },
-    {
-      name: "Shipped",
-      icon: "🚚",
-    },
-    {
-      name: "Delivered",
-      icon: "📦",
-    },
-  ];
-
-  const getCurrentStep = (status) => {
-    switch (status) {
-      case "Placed":
-        return 0;
-
-      case "Confirmed":
-        return 1;
-
-      case "Shipped":
-        return 2;
-
-      case "Delivered":
-        return 3;
-
-      default:
-        return -1;
+    if (id.length <= 10) {
+      return id.toUpperCase();
     }
+
+    return id
+      .slice(-10)
+      .toUpperCase();
   };
 
-  // =========================
-  // TRACKER COMPONENT
-  // =========================
+  // =====================================================
+  // PRODUCT ID
+  // =====================================================
 
-  const OrderTracker = ({ status }) => {
-    // Cancelled order gets a
-    // separate state.
-
-    if (status === "Cancelled") {
+  const getProductId = (
+    item,
+    index
+  ) => {
+    if (
+      item?.product &&
+      typeof item.product ===
+        "object"
+    ) {
       return (
-        <div className="order-tracker-wrapper">
-          <div className="tracker-title">
-            Order Progress
-          </div>
-
-          <div className="tracker-cancelled">
-            <div className="tracker-cancelled-icon">
-              ✕
-            </div>
-
-            <div>
-              <strong>
-                Order Cancelled
-              </strong>
-
-              <p>
-                This order will not
-                be processed further.
-              </p>
-            </div>
-          </div>
-        </div>
+        item.product._id ||
+        item.product.id ||
+        item._id ||
+        index
       );
     }
 
-    const currentStep =
-      getCurrentStep(status);
-
     return (
-      <div className="order-tracker-wrapper">
-        <div className="tracker-title">
-          Order Progress
-        </div>
-
-        <div className="order-tracker">
-          {orderSteps.map(
-            (step, index) => {
-              const completed =
-                index <= currentStep;
-
-              const current =
-                index === currentStep;
-
-              return (
-                <div
-                  className="tracker-step"
-                  key={step.name}
-                >
-                  {/* CONNECTING LINE */}
-
-                  {index !== 0 && (
-                    <div
-                      className={`tracker-line ${
-                        index <= currentStep
-                          ? "tracker-line-complete"
-                          : ""
-                      }`}
-                    />
-                  )}
-
-                  {/* CIRCLE */}
-
-                  <div
-                    className={`tracker-circle ${
-                      completed
-                        ? "tracker-complete"
-                        : ""
-                    } ${
-                      current
-                        ? "tracker-current"
-                        : ""
-                    }`}
-                  >
-                    {completed
-                      ? step.icon
-                      : "○"}
-                  </div>
-
-                  {/* LABEL */}
-
-                  <div
-                    className={`tracker-label ${
-                      completed
-                        ? "tracker-label-complete"
-                        : ""
-                    }`}
-                  >
-                    {step.name}
-                  </div>
-                </div>
-              );
-            }
-          )}
-        </div>
-      </div>
+      item?.product ||
+      item?._id ||
+      item?.id ||
+      index
     );
   };
 
-  // =========================
-  // UI
-  // =========================
+  // =====================================================
+  // PRODUCT IMAGE
+  //
+  // New orders:
+  // item.image
+  //
+  // Also supports populated product.image if your backend
+  // later populates the Product reference.
+  // =====================================================
+
+  const getProductImage = (
+    item
+  ) => {
+    return (
+      item?.image ||
+      item?.product?.image ||
+      ""
+    );
+  };
+
+  // =====================================================
+  // PRODUCT ICON
+  // =====================================================
+
+  const getProductIcon = (
+    item
+  ) => {
+    return (
+      item?.icon ||
+      item?.product?.icon ||
+      "📦"
+    );
+  };
+
+  // =====================================================
+  // IMAGE ERROR
+  // =====================================================
+
+  const handleImageError = (
+    event
+  ) => {
+    const image =
+      event.currentTarget;
+
+    image.style.display =
+      "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display =
+        "flex";
+    }
+  };
+
+  // =====================================================
+  // TOTAL ITEMS
+  // =====================================================
+
+  const getTotalItems = (
+    order
+  ) => {
+    if (
+      !Array.isArray(
+        order?.items
+      )
+    ) {
+      return 0;
+    }
+
+    return order.items.reduce(
+      (total, item) =>
+        total +
+        Number(
+          item.quantity || 1
+        ),
+      0
+    );
+  };
+
+  // =====================================================
+  // STATUS CLASS
+  // =====================================================
+
+  const getStatusClass = (
+    status
+  ) => {
+    switch (
+      String(
+        status || ""
+      ).toLowerCase()
+    ) {
+      case "placed":
+        return "status-placed";
+
+      case "confirmed":
+        return "status-confirmed";
+
+      case "shipped":
+        return "status-shipped";
+
+      case "delivered":
+        return "status-delivered";
+
+      case "cancelled":
+        return "status-cancelled";
+
+      default:
+        return "";
+    }
+  };
+
+  // =====================================================
+  // STATUS ICON
+  // =====================================================
+
+  const getStatusIcon = (
+    status
+  ) => {
+    switch (
+      String(
+        status || ""
+      ).toLowerCase()
+    ) {
+      case "placed":
+        return "📝";
+
+      case "confirmed":
+        return "✅";
+
+      case "shipped":
+        return "🚚";
+
+      case "delivered":
+        return "📦";
+
+      case "cancelled":
+        return "❌";
+
+      default:
+        return "📋";
+    }
+  };
+
+  // =====================================================
+  // PAYMENT STATUS CLASS
+  // =====================================================
+
+  const getPaymentStatusClass = (
+    status
+  ) => {
+    switch (
+      String(
+        status || ""
+      ).toLowerCase()
+    ) {
+      case "paid":
+        return "payment-paid";
+
+      case "failed":
+        return "payment-failed";
+
+      default:
+        return "payment-pending";
+    }
+  };
+
+  // =====================================================
+  // CAN CANCEL ORDER
+  // =====================================================
+
+  const canCancelOrder = (
+    order
+  ) => {
+    const status =
+      String(
+        order?.status || ""
+      ).toLowerCase();
+
+    return (
+      status === "placed" ||
+      status === "confirmed"
+    );
+  };
+
+  // =====================================================
+  // CANCEL ORDER
+  // =====================================================
+
+  const handleCancelOrder =
+    async (orderId) => {
+      if (!orderId) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to cancel this order?"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setCancellingOrderId(
+          orderId
+        );
+
+        setError("");
+
+        const response =
+          await fetch(
+            `${apiUrl}/api/orders/${orderId}/cancel`,
+            {
+              method: "PATCH",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        let data;
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          throw new Error(
+            "Invalid response received from the server."
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Unable to cancel this order."
+          );
+        }
+
+        // Update the cancelled order immediately
+        setOrders(
+          (currentOrders) =>
+            currentOrders.map(
+              (order) => {
+                if (
+                  order._id !==
+                  orderId
+                ) {
+                  return order;
+                }
+
+                return (
+                  data?.order ||
+                  data?.data ||
+                  {
+                    ...order,
+                    status:
+                      "Cancelled",
+                  }
+                );
+              }
+            )
+        );
+      } catch (err) {
+        console.error(
+          "Cancel order error:",
+          err
+        );
+
+        setError(
+          err.message ||
+            "Something went wrong while cancelling your order."
+        );
+      } finally {
+        setCancellingOrderId(
+          ""
+        );
+      }
+    };
+
+  // =====================================================
+  // CLOSE IF NOT OPEN
+  // =====================================================
+
+  if (!isOpen) {
+    return null;
+  }
+
+  // =====================================================
+  // JSX
+  // =====================================================
 
   return (
     <div
-      className="orders-overlay"
+      className="modal-overlay"
       onClick={onClose}
     >
       <div
         className="orders-modal"
-        onClick={(e) =>
-          e.stopPropagation()
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {/* =====================
+        {/* =================================================
             HEADER
-        ===================== */}
+        ================================================= */}
 
         <div className="orders-header">
           <div>
-            <h2>📦 My Orders</h2>
+            <div className="orders-title-row">
+              <span className="orders-title-icon">
+                📦
+              </span>
 
-            <p>
-              Track and manage your
-              ShopMind AI orders.
-            </p>
+              <div>
+                <h2>
+                  My Orders
+                </h2>
+
+                <p>
+                  Track and manage your
+                  ShopMind AI orders.
+                </p>
+              </div>
+            </div>
           </div>
 
           <button
             type="button"
-            className="orders-close-btn"
+            className="close-btn"
             onClick={onClose}
+            aria-label="Close orders"
           >
             ✕
           </button>
         </div>
 
-        {/* ERROR */}
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
         {error && (
-          <div className="orders-error">
+          <div className="auth-message auth-error">
             ⚠️ {error}
           </div>
         )}
 
-        {/* LOADING */}
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
         {loading ? (
           <div className="orders-loading">
-            <div className="orders-loader">
-              📦
+            <div className="orders-loading-icon">
+              ⏳
             </div>
 
             <h3>
@@ -416,12 +563,16 @@ function MyOrdersModal({ onClose }) {
             </h3>
 
             <p>
-              Please wait while we get
-              your order history.
+              Please wait while we
+              retrieve your order
+              history.
             </p>
           </div>
-        ) : orders.length === 0 ? (
-          /* EMPTY */
+        ) : orders.length ===
+          0 ? (
+          /* ===============================================
+             EMPTY ORDERS
+          =============================================== */
 
           <div className="orders-empty">
             <div className="orders-empty-icon">
@@ -433,319 +584,598 @@ function MyOrdersModal({ onClose }) {
             </h3>
 
             <p>
-              Your ShopMind AI orders
-              will appear here after
-              checkout.
+              Your placed orders will
+              appear here.
             </p>
 
             <button
               type="button"
+              className="continue-shopping-btn"
               onClick={onClose}
-              className="orders-shop-btn"
             >
-              Continue Shopping
+              ← Start Shopping
             </button>
           </div>
         ) : (
-          /* =====================
-              ORDER LIST
-          ===================== */
+          /* ===============================================
+             ORDERS LIST
+          =============================================== */
 
           <div className="orders-list">
-            {orders.map((order) => (
-              <div
-                className="order-card"
-                key={order._id}
-              >
-                {/* ORDER TOP */}
+            {orders.map(
+              (order) => {
+                const orderId =
+                  order._id ||
+                  order.id;
 
-                <div className="order-card-top">
-                  <div className="order-meta">
-                    <div>
-                      <span className="order-label">
-                        ORDER ID
-                      </span>
+                const items =
+                  Array.isArray(
+                    order.items
+                  )
+                    ? order.items
+                    : [];
 
-                      <strong className="order-id">
-                        #{order._id}
-                      </strong>
-                    </div>
+                const totalItems =
+                  getTotalItems(
+                    order
+                  );
 
-                    <div>
-                      <span className="order-label">
-                        ORDER DATE
-                      </span>
-
-                      <strong>
-                        {formatDate(
-                          order.createdAt
-                        )}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`order-status ${getStatusClass(
-                      order.status
-                    )}`}
+                return (
+                  <div
+                    className="order-card"
+                    key={orderId}
                   >
-                    {order.status ===
-                      "Placed" &&
-                      "🕒 "}
+                    {/* =====================================
+                        ORDER TOP
+                    ===================================== */}
 
-                    {order.status ===
-                      "Confirmed" &&
-                      "✓ "}
+                    <div className="order-card-header">
+                      <div>
+                        <span className="order-label">
+                          ORDER ID
+                        </span>
 
-                    {order.status ===
-                      "Shipped" &&
-                      "🚚 "}
+                        <h3 className="order-number">
+                          #
+                          {getShortOrderId(
+                            orderId
+                          )}
+                        </h3>
 
-                    {order.status ===
-                      "Delivered" &&
-                      "✓ "}
+                        <p className="order-date">
+                          {formatDate(
+                            order.createdAt
+                          )}
+                        </p>
+                      </div>
 
-                    {order.status ===
-                      "Cancelled" &&
-                      "✕ "}
-
-                    {order.status}
-                  </span>
-                </div>
-
-                {/* =====================
-                    ORDER TRACKER
-                ===================== */}
-
-                <OrderTracker
-                  status={order.status}
-                />
-
-                {/* MAIN CONTENT */}
-
-                <div className="order-card-content">
-                  {/* LEFT SIDE */}
-
-                  <div className="order-items-section">
-                    <h3>
-                      🛒 Items (
-                      {order.items?.length ||
-                        0}
-                      )
-                    </h3>
-
-                    <div className="order-products">
-                      {order.items?.map(
-                        (item, index) => (
-                          <div
-                            className="order-product"
-                            key={
-                              item._id ||
-                              `${order._id}-${index}`
-                            }
-                          >
-                            <div className="order-product-icon">
-                              {item.icon ||
-                                "📦"}
-                            </div>
-
-                            <div className="order-product-info">
-                              <strong>
-                                {
-                                  item.name
-                                }
-                              </strong>
-
-                              <span>
-                                Qty:{" "}
-                                {item.quantity ||
-                                  1}
-                              </span>
-                            </div>
-
-                            <strong className="order-product-price">
-                              ₹
-                              {formatPrice(
-                                Number(
-                                  item.price
-                                ) *
-                                  Number(
-                                    item.quantity ||
-                                      1
-                                  )
-                              )}
-                            </strong>
-                          </div>
-                        )
-                      )}
+                      <div className="order-header-right">
+                        <span
+                          className={`order-status ${getStatusClass(
+                            order.status
+                          )}`}
+                        >
+                          {getStatusIcon(
+                            order.status
+                          )}{" "}
+                          {order.status ||
+                            "Placed"}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* TOTAL */}
+                    {/* =====================================
+                        ORDER SUMMARY STRIP
+                    ===================================== */}
 
-                    <div className="order-total-row">
-                      <span>
-                        Order Total
-                      </span>
-
-                      <strong>
-                        ₹
-                        {formatPrice(
-                          order.totalAmount
-                        )}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* RIGHT SIDE */}
-
-                  <div className="order-details-section">
-                    {/* ADDRESS */}
-
-                    <div className="order-detail-box">
-                      <h3>
-                        🚚 Delivery Address
-                      </h3>
-
-                      <strong>
-                        {
-                          order
-                            .shippingAddress
-                            ?.fullName
-                        }
-                      </strong>
-
-                      <p>
-                        {
-                          order
-                            .shippingAddress
-                            ?.address
-                        }
-                      </p>
-
-                      <p>
-                        {
-                          order
-                            .shippingAddress
-                            ?.city
-                        }
-                        ,{" "}
-                        {
-                          order
-                            .shippingAddress
-                            ?.state
-                        }{" "}
-                        -{" "}
-                        {
-                          order
-                            .shippingAddress
-                            ?.pincode
-                        }
-                      </p>
-
-                      <p className="order-phone">
-                        📞{" "}
-                        {
-                          order
-                            .shippingAddress
-                            ?.phone
-                        }
-                      </p>
-                    </div>
-
-                    {/* PAYMENT */}
-
-                    <div className="order-detail-box">
-                      <h3>
-                        💳 Payment
-                      </h3>
-
-                      <div className="payment-row">
+                    <div className="order-quick-summary">
+                      <div>
                         <span>
-                          Method
+                          Items
                         </span>
 
                         <strong>
-                          {order.paymentMethod ===
-                          "COD"
-                            ? "Cash on Delivery"
-                            : order.paymentMethod}
+                          {totalItems}
                         </strong>
                       </div>
 
-                      <div className="payment-row">
+                      <div>
                         <span>
-                          Payment Status
+                          Payment
                         </span>
 
-                        <span
-                          className={`payment-status ${
-                            order.paymentStatus ===
-                            "Paid"
-                              ? "payment-paid"
-                              : "payment-pending"
-                          }`}
-                        >
-                          {order.paymentStatus ===
-                          "Paid"
-                            ? "✓ Paid"
-                            : "● Pending"}
+                        <strong>
+                          {order.paymentMethod ||
+                            "COD"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Total
                         </span>
+
+                        <strong>
+                          {formatPrice(
+                            order.totalAmount
+                          )}
+                        </strong>
                       </div>
                     </div>
 
-                    {/* CANCEL */}
+                    {/* =====================================
+                        PRODUCTS
+                    ===================================== */}
 
-                    {canCancelOrder(
-                      order.status
-                    ) && (
-                      <button
-                        type="button"
-                        className="cancel-order-btn"
-                        disabled={
-                          cancellingId ===
-                          order._id
+                    <div className="order-products">
+                      <h4>
+                        Products
+                      </h4>
+
+                      {items.map(
+                        (
+                          item,
+                          index
+                        ) => {
+                          const image =
+                            getProductImage(
+                              item
+                            );
+
+                          const icon =
+                            getProductIcon(
+                              item
+                            );
+
+                          const quantity =
+                            Number(
+                              item.quantity ||
+                                1
+                            );
+
+                          const price =
+                            Number(
+                              item.price ||
+                                0
+                            );
+
+                          const itemTotal =
+                            price *
+                            quantity;
+
+                          return (
+                            <div
+                              className="order-product"
+                              key={getProductId(
+                                item,
+                                index
+                              )}
+                            >
+                              {/* ===========================
+                                  REAL PRODUCT IMAGE
+                              =========================== */}
+
+                              <div className="order-product-icon">
+                                {image ? (
+                                  <img
+                                    src={
+                                      image
+                                    }
+                                    alt={
+                                      item.name ||
+                                      "Product"
+                                    }
+                                    className="order-product-image"
+                                    loading="lazy"
+                                    onError={
+                                      handleImageError
+                                    }
+                                  />
+                                ) : null}
+
+                                <span
+                                  className="order-product-image-fallback"
+                                  style={{
+                                    display:
+                                      image
+                                        ? "none"
+                                        : "flex",
+                                  }}
+                                >
+                                  {
+                                    icon
+                                  }
+                                </span>
+                              </div>
+
+                              {/* ===========================
+                                  PRODUCT INFO
+                              =========================== */}
+
+                              <div className="order-product-info">
+                                <h5>
+                                  {item.name ||
+                                    "Product"}
+                                </h5>
+
+                                <div className="order-product-meta">
+                                  <span>
+                                    {formatPrice(
+                                      price
+                                    )}
+                                  </span>
+
+                                  <span>
+                                    ×
+                                  </span>
+
+                                  <span>
+                                    Qty{" "}
+                                    {
+                                      quantity
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* ===========================
+                                  ITEM TOTAL
+                              =========================== */}
+
+                              <div className="order-product-price">
+                                <span>
+                                  Item Total
+                                </span>
+
+                                <strong>
+                                  {formatPrice(
+                                    itemTotal
+                                  )}
+                                </strong>
+                              </div>
+                            </div>
+                          );
                         }
-                        onClick={() =>
-                          handleCancelOrder(
-                            order._id
-                          )
-                        }
-                      >
-                        {cancellingId ===
-                        order._id
-                          ? "Cancelling..."
-                          : "✕ Cancel Order"}
-                      </button>
-                    )}
+                      )}
+                    </div>
 
-                    {/* CANCELLED */}
+                    {/* =====================================
+                        DELIVERY ADDRESS
+                    ===================================== */}
 
-                    {order.status ===
-                      "Cancelled" && (
-                      <div className="order-cancelled-message">
-                        This order has
-                        been cancelled.
+                    {order.shippingAddress && (
+                      <div className="order-details-section">
+                        <div className="order-section-heading">
+                          <span>
+                            📍
+                          </span>
+
+                          <h4>
+                            Delivery
+                            Address
+                          </h4>
+                        </div>
+
+                        <div className="order-address">
+                          <strong>
+                            {order
+                              .shippingAddress
+                              .fullName ||
+                              ""}
+                          </strong>
+
+                          <p>
+                            {order
+                              .shippingAddress
+                              .address ||
+                              ""}
+                          </p>
+
+                          <p>
+                            {order
+                              .shippingAddress
+                              .city ||
+                              ""}
+                            {order
+                              .shippingAddress
+                              .city &&
+                            order
+                              .shippingAddress
+                              .state
+                              ? ", "
+                              : ""}
+                            {order
+                              .shippingAddress
+                              .state ||
+                              ""}
+                            {order
+                              .shippingAddress
+                              .pincode
+                              ? ` - ${order.shippingAddress.pincode}`
+                              : ""}
+                          </p>
+
+                          {order
+                            .shippingAddress
+                            .phone && (
+                            <p>
+                              📞{" "}
+                              {
+                                order
+                                  .shippingAddress
+                                  .phone
+                              }
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    {/* DELIVERED */}
+                    {/* =====================================
+                        PAYMENT INFORMATION
+                    ===================================== */}
 
-                    {order.status ===
-                      "Delivered" && (
-                      <div className="order-delivered-message">
-                        ✓ Order delivered
-                        successfully.
+                    <div className="order-details-section">
+                      <div className="order-section-heading">
+                        <span>
+                          💳
+                        </span>
+
+                        <h4>
+                          Payment
+                        </h4>
+                      </div>
+
+                      <div className="order-payment-details">
+                        <div>
+                          <span>
+                            Payment
+                            Method
+                          </span>
+
+                          <strong>
+                            {order.paymentMethod ||
+                              "COD"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Payment
+                            Status
+                          </span>
+
+                          <strong
+                            className={getPaymentStatusClass(
+                              order.paymentStatus
+                            )}
+                          >
+                            {order.paymentStatus ||
+                              "Pending"}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* =====================================
+                        ORDER TRACKING
+                    ===================================== */}
+
+                    <div className="order-details-section">
+                      <div className="order-section-heading">
+                        <span>
+                          🚚
+                        </span>
+
+                        <h4>
+                          Order Tracking
+                        </h4>
+                      </div>
+
+                      {String(
+                        order.status ||
+                          ""
+                      ).toLowerCase() ===
+                      "cancelled" ? (
+                        <div className="order-cancelled-message">
+                          ❌ This order has
+                          been cancelled.
+                        </div>
+                      ) : (
+                        <div className="order-tracking">
+                          {/* PLACED */}
+
+                          <div
+                            className={`tracking-step ${
+                              [
+                                "placed",
+                                "confirmed",
+                                "shipped",
+                                "delivered",
+                              ].includes(
+                                String(
+                                  order.status ||
+                                    ""
+                                ).toLowerCase()
+                              )
+                                ? "active"
+                                : ""
+                            }`}
+                          >
+                            <span className="tracking-dot">
+                              ✓
+                            </span>
+
+                            <span>
+                              Placed
+                            </span>
+                          </div>
+
+                          <div className="tracking-line" />
+
+                          {/* CONFIRMED */}
+
+                          <div
+                            className={`tracking-step ${
+                              [
+                                "confirmed",
+                                "shipped",
+                                "delivered",
+                              ].includes(
+                                String(
+                                  order.status ||
+                                    ""
+                                ).toLowerCase()
+                              )
+                                ? "active"
+                                : ""
+                            }`}
+                          >
+                            <span className="tracking-dot">
+                              ✓
+                            </span>
+
+                            <span>
+                              Confirmed
+                            </span>
+                          </div>
+
+                          <div className="tracking-line" />
+
+                          {/* SHIPPED */}
+
+                          <div
+                            className={`tracking-step ${
+                              [
+                                "shipped",
+                                "delivered",
+                              ].includes(
+                                String(
+                                  order.status ||
+                                    ""
+                                ).toLowerCase()
+                              )
+                                ? "active"
+                                : ""
+                            }`}
+                          >
+                            <span className="tracking-dot">
+                              ✓
+                            </span>
+
+                            <span>
+                              Shipped
+                            </span>
+                          </div>
+
+                          <div className="tracking-line" />
+
+                          {/* DELIVERED */}
+
+                          <div
+                            className={`tracking-step ${
+                              String(
+                                order.status ||
+                                  ""
+                              ).toLowerCase() ===
+                              "delivered"
+                                ? "active"
+                                : ""
+                            }`}
+                          >
+                            <span className="tracking-dot">
+                              ✓
+                            </span>
+
+                            <span>
+                              Delivered
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* =====================================
+                        ORDER TOTAL
+                    ===================================== */}
+
+                    <div className="order-total-section">
+                      <div>
+                        <span>
+                          Order Total
+                        </span>
+
+                        <strong>
+                          {formatPrice(
+                            order.totalAmount
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* =====================================
+                        CANCEL ORDER
+                    ===================================== */}
+
+                    {canCancelOrder(
+                      order
+                    ) && (
+                      <div className="order-actions">
+                        <button
+                          type="button"
+                          className="cancel-order-btn"
+                          onClick={() =>
+                            handleCancelOrder(
+                              orderId
+                            )
+                          }
+                          disabled={
+                            cancellingOrderId ===
+                            orderId
+                          }
+                        >
+                          {cancellingOrderId ===
+                          orderId
+                            ? "Cancelling..."
+                            : "Cancel Order"}
+                        </button>
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              }
+            )}
           </div>
         )}
+
+        {/* =================================================
+            FOOTER
+        ================================================= */}
+
+        {!loading &&
+          orders.length >
+            0 && (
+            <div className="orders-footer">
+              <button
+                type="button"
+                className="continue-shopping-btn"
+                onClick={onClose}
+              >
+                ← Continue Shopping
+              </button>
+
+              <button
+                type="button"
+                className="orders-refresh-btn"
+                onClick={
+                  fetchOrders
+                }
+              >
+                🔄 Refresh Orders
+              </button>
+            </div>
+          )}
       </div>
     </div>
   );
 }
-
-export default MyOrdersModal;

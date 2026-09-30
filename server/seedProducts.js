@@ -7,13 +7,19 @@ require("dotenv").config();
 
 const Product = require("./models/Product");
 
+// =========================================================
+// SHOPMIND AI - PRODUCT SEED DATA
+// =========================================================
+
 const products = [
   {
     name: "MacBook Air M4",
     category: "Laptop",
     price: 99900,
     icon: "💻",
+    image: "/products/macbook-air-m4.png",
     rating: 4.8,
+    stock: 10,
     description:
       "Powerful and lightweight laptop suitable for programming, development and everyday work.",
   },
@@ -23,7 +29,9 @@ const products = [
     category: "Smartphone",
     price: 74999,
     icon: "📱",
+    image: "/products/samsung-galaxy-s25.png",
     rating: 4.7,
+    stock: 15,
     description:
       "Premium smartphone with powerful performance, excellent display and advanced camera features.",
   },
@@ -33,7 +41,9 @@ const products = [
     category: "Headphones",
     price: 29990,
     icon: "🎧",
+    image: "/products/sony-wh-1000xm5.png",
     rating: 4.6,
+    stock: 20,
     description:
       "Premium wireless headphones with excellent noise cancellation and high-quality sound.",
   },
@@ -43,7 +53,9 @@ const products = [
     category: "Smartwatch",
     price: 46900,
     icon: "⌚",
+    image: "/products/apple-watch-series-10.png",
     rating: 4.7,
+    stock: 12,
     description:
       "Smartwatch with fitness tracking, notifications and a premium design.",
   },
@@ -53,7 +65,9 @@ const products = [
     category: "Laptop",
     price: 89990,
     icon: "💻",
+    image: "/products/asus-rog-gaming-laptop.png",
     rating: 4.5,
+    stock: 8,
     description:
       "High-performance gaming laptop designed for gaming, programming and demanding applications.",
   },
@@ -63,11 +77,17 @@ const products = [
     category: "Smartphone",
     price: 69999,
     icon: "📱",
+    image: "/products/oneplus-13.png",
     rating: 4.6,
+    stock: 18,
     description:
       "Fast and powerful smartphone with a premium display and excellent overall performance.",
   },
 ];
+
+// =========================================================
+// SEED PRODUCTS
+// =========================================================
 
 const seedProducts = async () => {
   try {
@@ -75,12 +95,10 @@ const seedProducts = async () => {
 
     console.log("MongoDB connected successfully ✅");
 
-    // Remove existing products first
     await Product.deleteMany({});
 
     console.log("Old products removed.");
 
-    // Add new products
     await Product.insertMany(products);
 
     console.log("6 products added successfully 🎉");

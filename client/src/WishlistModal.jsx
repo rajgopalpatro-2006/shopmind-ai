@@ -74,6 +74,7 @@ function WishlistModal({
   const loadWishlist = async () => {
     try {
       setLoading(true);
+
       setError("");
 
       const token = getToken();
@@ -153,6 +154,7 @@ function WishlistModal({
       );
 
       setError("");
+
       setMessage("");
 
       const token = getToken();
@@ -239,7 +241,9 @@ function WishlistModal({
 
     try {
       setClearing(true);
+
       setError("");
+
       setMessage("");
 
       const token = getToken();
@@ -345,6 +349,28 @@ function WishlistModal({
   };
 
   // ===================================================
+  // HANDLE IMAGE ERROR
+  // ===================================================
+
+  const handleImageError = (
+    event
+  ) => {
+    const image =
+      event.currentTarget;
+
+    image.style.display =
+      "none";
+
+    const fallback =
+      image.nextElementSibling;
+
+    if (fallback) {
+      fallback.style.display =
+        "flex";
+    }
+  };
+
+  // ===================================================
   // MODAL
   // ===================================================
 
@@ -364,7 +390,6 @@ function WishlistModal({
         ============================================= */}
 
         <div className="wishlist-header">
-
           <div>
             <h2>
               ❤️ My Wishlist
@@ -384,7 +409,6 @@ function WishlistModal({
           >
             ✕
           </button>
-
         </div>
 
         {/* =============================================
@@ -392,7 +416,6 @@ function WishlistModal({
         ============================================= */}
 
         <div className="wishlist-body">
-
           {/* MESSAGE */}
 
           {message && (
@@ -415,7 +438,6 @@ function WishlistModal({
 
           {loading && (
             <div className="wishlist-state">
-
               <div className="wishlist-state-icon">
                 ❤️
               </div>
@@ -428,7 +450,6 @@ function WishlistModal({
                 Getting your saved
                 products.
               </p>
-
             </div>
           )}
 
@@ -440,7 +461,6 @@ function WishlistModal({
             !error &&
             products.length === 0 && (
               <div className="wishlist-state">
-
                 <div className="wishlist-state-icon">
                   🤍
                 </div>
@@ -459,9 +479,8 @@ function WishlistModal({
                   className="wishlist-shopping-btn"
                   onClick={onClose}
                 >
-                  Continue Shopping
+                  ← Continue Shopping
                 </button>
-
               </div>
             )}
 
@@ -472,9 +491,11 @@ function WishlistModal({
           {!loading &&
             products.length > 0 && (
               <>
+                {/* =====================================
+                    TOOLBAR
+                ===================================== */}
 
                 <div className="wishlist-toolbar">
-
                   <span>
                     <strong>
                       {products.length}
@@ -498,140 +519,195 @@ function WishlistModal({
                       ? "Clearing..."
                       : "🗑️ Clear Wishlist"}
                   </button>
-
                 </div>
 
+                {/* =====================================
+                    PRODUCT GRID
+                ===================================== */}
+
                 <div className="wishlist-grid">
-
                   {products.map(
-                    (product) => (
-                      <div
-                        className="wishlist-card"
-                        key={
-                          product._id
-                        }
-                      >
+                    (product) => {
+                      const stock =
+                        Number(
+                          product.stock ||
+                            0
+                        );
 
-                        {/* PRODUCT ICON / IMAGE */}
+                      const inStock =
+                        stock > 0;
 
-                        <div className="wishlist-product-image">
+                      return (
+                        <div
+                          className="wishlist-card"
+                          key={
+                            product._id
+                          }
+                        >
+                          {/* =============================
+                              REAL PRODUCT IMAGE
+                          ============================= */}
 
-                          {product.image ? (
-                            <img
-                              src={
-                                product.image
-                              }
-                              alt={
-                                product.name
-                              }
-                            />
-                          ) : (
-                            <span>
+                          <div className="wishlist-product-image">
+                            {product.image ? (
+                              <img
+                                src={
+                                  product.image
+                                }
+                                alt={
+                                  product.name ||
+                                  "Product"
+                                }
+                                className="wishlist-real-image"
+                                loading="lazy"
+                                onError={
+                                  handleImageError
+                                }
+                              />
+                            ) : null}
+
+                            <span
+                              className="wishlist-image-fallback"
+                              style={{
+                                display:
+                                  product.image
+                                    ? "none"
+                                    : "flex",
+                              }}
+                            >
                               {product.icon ||
                                 "📦"}
                             </span>
-                          )}
 
-                        </div>
+                            {/* STOCK BADGE */}
 
-                        {/* PRODUCT INFORMATION */}
-
-                        <div className="wishlist-product-info">
-
-                          <div className="wishlist-category">
-                            {product.category ||
-                              "Product"}
-                          </div>
-
-                          <h3>
-                            {product.name}
-                          </h3>
-
-                          {product.description && (
-                            <p className="wishlist-description">
-                              {
-                                product.description
-                              }
-                            </p>
-                          )}
-
-                          <div className="wishlist-price">
-                            ₹
-                            {formatPrice(
-                              product.price
+                            {!inStock && (
+                              <span className="wishlist-image-stock-badge out">
+                                Out of Stock
+                              </span>
                             )}
+
+                            {inStock &&
+                              stock <= 5 && (
+                                <span className="wishlist-image-stock-badge low">
+                                  Only{" "}
+                                  {stock}{" "}
+                                  left
+                                </span>
+                              )}
                           </div>
 
-                          {/* STOCK */}
+                          {/* =============================
+                              PRODUCT INFORMATION
+                          ============================= */}
 
-                          <div
-                            className={
-                              Number(
-                                product.stock
-                              ) > 0
-                                ? "wishlist-stock in-stock"
-                                : "wishlist-stock out-stock"
-                            }
-                          >
-                            {Number(
-                              product.stock
-                            ) > 0
-                              ? `In Stock (${product.stock})`
-                              : "Out of Stock"}
-                          </div>
+                          <div className="wishlist-product-info">
+                            <div className="wishlist-category">
+                              {product.category ||
+                                "Product"}
+                            </div>
 
-                          {/* ACTIONS */}
-
-                          <div className="wishlist-actions">
-
-                            <button
-                              type="button"
-                              className="wishlist-cart-btn"
-                              onClick={() =>
-                                handleAddToCart(
-                                  product
-                                )
+                            <h3>
+                              {
+                                product.name
                               }
-                              disabled={
-                                Number(
-                                  product.stock
-                                ) <= 0
+                            </h3>
+
+                            {product.description && (
+                              <p className="wishlist-description">
+                                {
+                                  product.description
+                                }
+                              </p>
+                            )}
+
+                            {/* RATING */}
+
+                            {product.rating !==
+                              undefined && (
+                              <div className="wishlist-rating">
+                                ⭐{" "}
+                                {Number(
+                                  product.rating ||
+                                    0
+                                ).toFixed(
+                                  1
+                                )}
+                              </div>
+                            )}
+
+                            {/* PRICE */}
+
+                            <div className="wishlist-price">
+                              ₹
+                              {formatPrice(
+                                product.price
+                              )}
+                            </div>
+
+                            {/* STOCK */}
+
+                            <div
+                              className={
+                                inStock
+                                  ? "wishlist-stock in-stock"
+                                  : "wishlist-stock out-stock"
                               }
                             >
-                              🛒 Add to Cart
-                            </button>
+                              {inStock
+                                ? `✓ In Stock (${stock})`
+                                : "✕ Out of Stock"}
+                            </div>
 
-                            <button
-                              type="button"
-                              className="wishlist-remove-btn"
-                              onClick={() =>
-                                removeFromWishlist(
+                            {/* ===========================
+                                ACTIONS
+                            =========================== */}
+
+                            <div className="wishlist-actions">
+                              <button
+                                type="button"
+                                className="wishlist-cart-btn"
+                                onClick={() =>
+                                  handleAddToCart(
+                                    product
+                                  )
+                                }
+                                disabled={
+                                  !inStock
+                                }
+                              >
+                                {inStock
+                                  ? "🛒 Add to Cart"
+                                  : "Out of Stock"}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="wishlist-remove-btn"
+                                onClick={() =>
+                                  removeFromWishlist(
+                                    product._id
+                                  )
+                                }
+                                disabled={
+                                  removingId ===
                                   product._id
-                                )
-                              }
-                              disabled={
-                                removingId ===
+                                }
+                              >
+                                {removingId ===
                                 product._id
-                              }
-                            >
-                              {removingId ===
-                              product._id
-                                ? "Removing..."
-                                : "🗑️ Remove"}
-                            </button>
-
+                                  ? "Removing..."
+                                  : "🗑️ Remove"}
+                              </button>
+                            </div>
                           </div>
-
                         </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
-
                 </div>
-
               </>
             )}
-
         </div>
       </div>
     </div>
