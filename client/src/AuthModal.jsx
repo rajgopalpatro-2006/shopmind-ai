@@ -6,7 +6,12 @@ function AuthModal({
   onAuthSuccess,
   apiUrl,
 }) {
+  // =====================================================
+  // STATE
+  // =====================================================
+
   const [mode, setMode] = useState("login");
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,29 +19,34 @@ function AuthModal({
   const [showPassword, setShowPassword] =
     useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState("");
+  // =====================================================
+  // DON'T RENDER WHEN CLOSED
+  // =====================================================
 
   if (!isOpen) {
     return null;
   }
 
-  /* =================================================
-     CHANGE LOGIN / REGISTER MODE
-  ================================================= */
+  // =====================================================
+  // CHANGE LOGIN / REGISTER MODE
+  // =====================================================
 
   const changeMode = (newMode) => {
     setMode(newMode);
     setError("");
-    setShowPassword(false);
+    setPassword("");
+
+    if (newMode === "login") {
+      setName("");
+    }
   };
 
-  /* =================================================
-     SUBMIT AUTHENTICATION
-  ================================================= */
+  // =====================================================
+  // LOGIN / REGISTER
+  // =====================================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -45,39 +55,51 @@ function AuthModal({
     setError("");
 
     try {
+      // IMPORTANT:
+      // Backend routes are:
+      //
+      // LOGIN:
+      // POST /api/auth/login
+      //
+      // REGISTER:
+      // POST /api/auth/signup
+
       const endpoint =
         mode === "login"
           ? `${apiUrl}/api/auth/login`
-          : `${apiUrl}/api/auth/register`;
+          : `${apiUrl}/api/auth/signup`;
 
       const body =
         mode === "login"
           ? {
-              email,
+              email: email.trim(),
               password,
             }
           : {
-              name,
-              email,
+              name: name.trim(),
+              email: email.trim(),
               password,
             };
 
-      const response = await fetch(
-        endpoint,
-        {
-          method: "POST",
+      const response = await fetch(endpoint, {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify(body),
-        }
-      );
+        body: JSON.stringify(body),
+      });
 
-      const data =
-        await response.json();
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Server returned an invalid response."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -87,7 +109,20 @@ function AuthModal({
         );
       }
 
-      onAuthSuccess(data);
+      // =================================================
+      // AUTHENTICATION SUCCESS
+      // =================================================
+
+      if (onAuthSuccess) {
+        onAuthSuccess(data);
+      }
+
+      // Clear form after success
+
+      setName("");
+      setEmail("");
+      setPassword("");
+      setError("");
     } catch (error) {
       console.error(
         "Authentication error:",
@@ -103,437 +138,315 @@ function AuthModal({
     }
   };
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
     <div
       className="modal-overlay auth-overlay"
       onClick={onClose}
     >
-      {/* DECORATIVE BACKGROUND */}
-
-      <div className="auth-bg-orb auth-orb-one" />
-      <div className="auth-bg-orb auth-orb-two" />
-
       <div
         className="auth-modal"
         onClick={(event) =>
           event.stopPropagation()
         }
       >
-        {/* ============================================
+        {/* =============================================
             CLOSE BUTTON
-        ============================================ */}
+        ============================================= */}
 
         <button
           type="button"
-          className="auth-close-btn"
+          className="close-btn"
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close authentication window"
         >
           ✕
         </button>
 
-        {/* ============================================
-            LEFT BRAND PANEL
-        ============================================ */}
+        {/* =============================================
+            AUTH HEADER
+        ============================================= */}
 
-        <div className="auth-brand-panel">
-          <div className="auth-brand-content">
-            <div className="auth-brand-logo">
-              🛍️
-            </div>
-
-            <div className="auth-brand-name">
-              ShopMind AI
-            </div>
-
-            <h2>
-              Shopping made
-              <span> smarter.</span>
-            </h2>
-
-            <p>
-              Discover products, compare
-              choices and get intelligent
-              recommendations with your
-              personal AI shopping
-              assistant.
-            </p>
-
-            <div className="auth-feature-list">
-              <div>
-                <span>✨</span>
-
-                <p>
-                  <strong>
-                    AI Recommendations
-                  </strong>
-
-                  <small>
-                    Products selected around
-                    your requirements.
-                  </small>
-                </p>
-              </div>
-
-              <div>
-                <span>⚖️</span>
-
-                <p>
-                  <strong>
-                    Smart Comparison
-                  </strong>
-
-                  <small>
-                    Compare products before
-                    making your decision.
-                  </small>
-                </p>
-              </div>
-
-              <div>
-                <span>🛒</span>
-
-                <p>
-                  <strong>
-                    Simple Shopping
-                  </strong>
-
-                  <small>
-                    Search, save and shop
-                    from one place.
-                  </small>
-                </p>
-              </div>
-            </div>
+        <div className="auth-header">
+          <div className="auth-logo">
+            🛍️
           </div>
 
-          <div className="auth-brand-decoration auth-decoration-one">
-            ✨
-          </div>
+          <span className="auth-welcome-label">
+            {mode === "login"
+              ? "WELCOME BACK"
+              : "JOIN SHOPMIND AI"}
+          </span>
 
-          <div className="auth-brand-decoration auth-decoration-two">
-            🤖
-          </div>
+          <h2>
+            {mode === "login"
+              ? "Welcome Back 👋"
+              : "Create Account ✨"}
+          </h2>
 
-          <div className="auth-brand-decoration auth-decoration-three">
-            🛒
-          </div>
+          <p>
+            {mode === "login"
+              ? "Login to continue your smart shopping journey."
+              : "Create your ShopMind AI account and start shopping smarter."}
+          </p>
         </div>
 
-        {/* ============================================
-            RIGHT FORM PANEL
-        ============================================ */}
+        {/* =============================================
+            LOGIN / REGISTER TABS
+        ============================================= */}
 
-        <div className="auth-form-panel">
-          <div className="auth-form-container">
-            {/* MOBILE LOGO */}
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={
+              mode === "login" ? "active" : ""
+            }
+            onClick={() =>
+              changeMode("login")
+            }
+          >
+            Login
+          </button>
 
-            <div className="auth-mobile-logo">
-              <span>🛍️</span>
+          <button
+            type="button"
+            className={
+              mode === "register" ? "active" : ""
+            }
+            onClick={() =>
+              changeMode("register")
+            }
+          >
+            Register
+          </button>
+        </div>
 
-              <strong>
-                ShopMind AI
-              </strong>
+        {/* =============================================
+            AUTH FORM
+        ============================================= */}
+
+        <form
+          className="auth-form"
+          onSubmit={handleSubmit}
+        >
+          {/* ===========================================
+              FULL NAME
+          =========================================== */}
+
+          {mode === "register" && (
+            <div className="form-group">
+              <label htmlFor="auth-name">
+                Full Name
+              </label>
+
+              <div className="auth-input-wrapper">
+                <span className="auth-input-icon">
+                  👤
+                </span>
+
+                <input
+                  id="auth-name"
+                  type="text"
+                  value={name}
+                  placeholder="Enter your full name"
+                  autoComplete="name"
+                  onChange={(event) =>
+                    setName(
+                      event.target.value
+                    )
+                  }
+                  required
+                />
+              </div>
             </div>
+          )}
 
-            {/* HEADER */}
+          {/* ===========================================
+              EMAIL
+          =========================================== */}
 
-            <div className="auth-header">
-              <span className="auth-welcome-label">
-                {mode === "login"
-                  ? "WELCOME BACK"
-                  : "JOIN SHOPMIND"}
+          <div className="form-group">
+            <label htmlFor="auth-email">
+              Email Address
+            </label>
+
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                ✉️
               </span>
 
-              <h2>
-                {mode === "login"
-                  ? "Welcome Back 👋"
-                  : "Create Account ✨"}
-              </h2>
-
-              <p>
-                {mode === "login"
-                  ? "Login to continue your smart shopping journey."
-                  : "Create your account and start shopping smarter with AI."}
-              </p>
-            </div>
-
-            {/* ============================================
-                LOGIN / REGISTER TABS
-            ============================================ */}
-
-            <div className="auth-tabs">
-              <button
-                type="button"
-                className={
-                  mode === "login"
-                    ? "active"
-                    : ""
+              <input
+                id="auth-email"
+                type="email"
+                value={email}
+                placeholder="Enter your email"
+                autoComplete="email"
+                onChange={(event) =>
+                  setEmail(
+                    event.target.value
+                  )
                 }
-                onClick={() =>
-                  changeMode("login")
-                }
-              >
-                Login
-              </button>
-
-              <button
-                type="button"
-                className={
-                  mode === "register"
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  changeMode("register")
-                }
-              >
-                Register
-              </button>
-            </div>
-
-            {/* ============================================
-                FORM
-            ============================================ */}
-
-            <form
-              className="auth-form"
-              onSubmit={handleSubmit}
-            >
-              {/* NAME */}
-
-              {mode === "register" && (
-                <div className="auth-input-group">
-                  <label>
-                    Full Name
-                  </label>
-
-                  <div className="auth-input-wrapper">
-                    <span className="auth-input-icon">
-                      👤
-                    </span>
-
-                    <input
-                      type="text"
-                      value={name}
-                      placeholder="Enter your full name"
-                      onChange={(event) =>
-                        setName(
-                          event.target.value
-                        )
-                      }
-                      autoComplete="name"
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* EMAIL */}
-
-              <div className="auth-input-group">
-                <label>
-                  Email Address
-                </label>
-
-                <div className="auth-input-wrapper">
-                  <span className="auth-input-icon">
-                    ✉️
-                  </span>
-
-                  <input
-                    type="email"
-                    value={email}
-                    placeholder="Enter your email"
-                    onChange={(event) =>
-                      setEmail(
-                        event.target.value
-                      )
-                    }
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* PASSWORD */}
-
-              <div className="auth-input-group">
-                <div className="auth-password-label">
-                  <label>
-                    Password
-                  </label>
-
-                  {mode === "login" && (
-                    <button
-                      type="button"
-                      className="auth-forgot-btn"
-                      onClick={() => {
-                        alert(
-                          "Forgot password feature will be connected next."
-                        );
-                      }}
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-
-                <div className="auth-input-wrapper">
-                  <span className="auth-input-icon">
-                    🔒
-                  </span>
-
-                  <input
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    value={password}
-                    placeholder={
-                      mode === "login"
-                        ? "Enter your password"
-                        : "Create a password"
-                    }
-                    onChange={(event) =>
-                      setPassword(
-                        event.target.value
-                      )
-                    }
-                    autoComplete={
-                      mode === "login"
-                        ? "current-password"
-                        : "new-password"
-                    }
-                    minLength={6}
-                    required
-                  />
-
-                  <button
-                    type="button"
-                    className="auth-password-toggle"
-                    onClick={() =>
-                      setShowPassword(
-                        (current) =>
-                          !current
-                      )
-                    }
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                  >
-                    {showPassword
-                      ? "🙈"
-                      : "👁️"}
-                  </button>
-                </div>
-
-                {mode === "register" && (
-                  <small className="auth-password-hint">
-                    Use at least 6
-                    characters.
-                  </small>
-                )}
-              </div>
-
-              {/* ============================================
-                  ERROR
-              ============================================ */}
-
-              {error && (
-                <div className="auth-error">
-                  <span>⚠️</span>
-
-                  <p>{error}</p>
-                </div>
-              )}
-
-              {/* ============================================
-                  SUBMIT
-              ============================================ */}
-
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="auth-spinner" />
-
-                    Please wait...
-                  </>
-                ) : mode ===
-                  "login" ? (
-                  <>
-                    Login to ShopMind
-
-                    <span>→</span>
-                  </>
-                ) : (
-                  <>
-                    Create My Account
-
-                    <span>→</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* ============================================
-                SECURITY MESSAGE
-            ============================================ */}
-
-            <div className="auth-security">
-              <span>🔒</span>
-
-              <p>
-                Your information is securely
-                protected.
-              </p>
-            </div>
-
-            {/* ============================================
-                SWITCH LOGIN / REGISTER
-            ============================================ */}
-
-            <div className="auth-switch">
-              {mode === "login" ? (
-                <p>
-                  New to ShopMind AI?
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeMode(
-                        "register"
-                      )
-                    }
-                  >
-                    Create account
-                  </button>
-                </p>
-              ) : (
-                <p>
-                  Already have an account?
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeMode(
-                        "login"
-                      )
-                    }
-                  >
-                    Login here
-                  </button>
-                </p>
-              )}
+                required
+              />
             </div>
           </div>
+
+          {/* ===========================================
+              PASSWORD
+          =========================================== */}
+
+          <div className="form-group">
+            <div className="auth-password-label">
+              <label htmlFor="auth-password">
+                Password
+              </label>
+
+              {mode === "login" && (
+                <button
+                  type="button"
+                  className="forgot-password-btn"
+                  onClick={() => {
+                    /*
+                     * Keep your existing forgot-password
+                     * functionality here if it is handled
+                     * elsewhere in App.jsx.
+                     */
+                  }}
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+
+            <div className="auth-input-wrapper">
+              <span className="auth-input-icon">
+                🔒
+              </span>
+
+              <input
+                id="auth-password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                value={password}
+                placeholder="Enter your password"
+                autoComplete={
+                  mode === "login"
+                    ? "current-password"
+                    : "new-password"
+                }
+                minLength={6}
+                onChange={(event) =>
+                  setPassword(
+                    event.target.value
+                  )
+                }
+                required
+              />
+
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() =>
+                  setShowPassword(
+                    (current) => !current
+                  )
+                }
+                aria-label={
+                  showPassword
+                    ? "Hide password"
+                    : "Show password"
+                }
+              >
+                {showPassword
+                  ? "🙈"
+                  : "👁️"}
+              </button>
+            </div>
+
+            {mode === "register" && (
+              <small className="password-help">
+                Use at least 6 characters.
+              </small>
+            )}
+          </div>
+
+          {/* ===========================================
+              ERROR MESSAGE
+          =========================================== */}
+
+          {error && (
+            <div className="auth-error">
+              <span>⚠️</span>
+
+              <span>
+                {error}
+              </span>
+            </div>
+          )}
+
+          {/* ===========================================
+              SUBMIT BUTTON
+          =========================================== */}
+
+          <button
+            type="submit"
+            className="auth-submit-btn"
+            disabled={loading}
+          >
+            {loading
+              ? "Please wait..."
+              : mode === "login"
+                ? "Login to ShopMind →"
+                : "Create My Account →"}
+          </button>
+
+          <div className="auth-security-text">
+            🔒 Your information is securely protected.
+          </div>
+        </form>
+
+        {/* =============================================
+            LOGIN / REGISTER SWITCH
+        ============================================= */}
+
+        <div className="auth-switch">
+          {mode === "login" ? (
+            <p>
+              New to ShopMind AI?{" "}
+
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode(
+                    "register"
+                  )
+                }
+              >
+                Create account
+              </button>
+            </p>
+          ) : (
+            <p>
+              Already have an account?{" "}
+
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode(
+                    "login"
+                  )
+                }
+              >
+                Login here
+              </button>
+            </p>
+          )}
         </div>
       </div>
     </div>
