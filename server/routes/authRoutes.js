@@ -45,15 +45,12 @@ const getSafeUser = (user) => {
     name: user.name,
     email: user.email,
     role: user.role || "user",
-
     phone: user.phone || "",
     address: user.address || "",
     city: user.city || "",
     state: user.state || "",
     pincode: user.pincode || "",
-
-    profileImage:
-      user.profileImage || "",
+    profileImage: user.profileImage || "",
   };
 };
 
@@ -63,174 +60,104 @@ const getSafeUser = (user) => {
 // PUBLIC
 // =====================================================
 
-router.post(
-  "/signup",
-  async (req, res) => {
-    try {
-      const {
-        name,
-        email,
-        password,
-      } = req.body;
+router.post("/signup", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+    } = req.body;
 
-      // =================================
-      // CHECK REQUIRED FIELDS
-      // =================================
-
-      if (
-        !name ||
-        !email ||
-        !password
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please fill in all fields.",
-          });
-      }
-
-      const cleanName =
-        String(name).trim();
-
-      const cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      // =================================
-      // VALIDATE NAME
-      // =================================
-
-      if (
-        cleanName.length < 2
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter a valid name.",
-          });
-      }
-
-      // =================================
-      // VALIDATE EMAIL
-      // =================================
-
-      const emailPattern =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      if (
-        !emailPattern.test(
-          cleanEmail
-        )
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter a valid email address.",
-          });
-      }
-
-      // =================================
-      // VALIDATE PASSWORD
-      // =================================
-
-      if (
-        String(password).length <
-        6
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Password must be at least 6 characters.",
-          });
-      }
-
-      // =================================
-      // CHECK EXISTING ACCOUNT
-      // =================================
-
-      const existingUser =
-        await User.findOne({
-          email: cleanEmail,
-        });
-
-      if (existingUser) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "An account with this email already exists.",
-          });
-      }
-
-      // =================================
-      // HASH PASSWORD
-      // =================================
-
-      const hashedPassword =
-        await bcrypt.hash(
-          password,
-          10
-        );
-
-      // =================================
-      // CREATE USER
-      // =================================
-
-      const user =
-        await User.create({
-          name: cleanName,
-          email: cleanEmail,
-          password:
-            hashedPassword,
-          role: "user",
-        });
-
-      // =================================
-      // CREATE TOKEN
-      // =================================
-
-      const token =
-        createToken(user);
-
-      return res
-        .status(201)
-        .json({
-          success: true,
-
-          message:
-            "Account created successfully.",
-
-          token,
-
-          user:
-            getSafeUser(user),
-        });
-    } catch (error) {
-      console.error(
-        "Signup error:",
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Server error during signup.",
-        });
+    // Check required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please fill in all fields.",
+      });
     }
+
+    const cleanName = String(name).trim();
+
+    const cleanEmail = String(email)
+      .trim()
+      .toLowerCase();
+
+    // Validate name
+    if (cleanName.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid name.",
+      });
+    }
+
+    // Validate email
+    const emailPattern =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid email address.",
+      });
+    }
+
+    // Validate password
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must be at least 6 characters.",
+      });
+    }
+
+    // Check existing account
+    const existingUser = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "An account with this email already exists.",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
+
+    // Create user
+    const user = await User.create({
+      name: cleanName,
+      email: cleanEmail,
+      password: hashedPassword,
+      role: "user",
+    });
+
+    // Create token
+    const token = createToken(user);
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Account created successfully.",
+      token,
+      user: getSafeUser(user),
+    });
+  } catch (error) {
+    console.error("Signup error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error during signup.",
+    });
   }
-);
+});
 
 // =====================================================
 // LOGIN
@@ -238,133 +165,172 @@ router.post(
 // PUBLIC
 // =====================================================
 
-router.post(
-  "/login",
+router.post("/login", async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+    } = req.body;
+
+    // Check required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter your email and password.",
+      });
+    }
+
+    const cleanEmail = String(email)
+      .trim()
+      .toLowerCase();
+
+    // Find user
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid email or password.",
+      });
+    }
+
+    // Compare password
+    const passwordMatches =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid email or password.",
+      });
+    }
+
+    // Create JWT token
+    const token = createToken(user);
+
+    // Send login security email.
+    // Do not wait for the email because email failure
+    // should not prevent a valid login.
+    sendLoginSecurityEmail(
+      user.email,
+      user.name
+    ).catch((emailError) => {
+      console.error(
+        "Login security email failed:",
+        emailError.message
+      );
+    });
+
+    // Login success
+    return res.status(200).json({
+      success: true,
+      message: "Login successful.",
+      token,
+      user: getSafeUser(user),
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error during login.",
+    });
+  }
+});
+
+// =====================================================
+// GET CURRENT LOGGED-IN USER
+// GET /api/auth/me
+// PRIVATE
+//
+// IMPORTANT:
+// Your frontend is calling /api/auth/me.
+// This route prevents the 404 error you saw in Console.
+// =====================================================
+
+router.get(
+  "/me",
+  protect,
   async (req, res) => {
     try {
-      const {
-        email,
-        password,
-      } = req.body;
-
-      // =================================
-      // CHECK REQUIRED FIELDS
-      // =================================
-
-      if (
-        !email ||
-        !password
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter your email and password.",
-          });
-      }
-
-      const cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      // =================================
-      // FIND USER
-      // =================================
-
-      const user =
-        await User.findOne({
-          email: cleanEmail,
-        });
+      const user = await User.findById(
+        req.user._id
+      ).select("-password");
 
       if (!user) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            message:
-              "Invalid email or password.",
-          });
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
       }
 
-      // =================================
-      // COMPARE PASSWORD
-      // =================================
-
-      const passwordMatches =
-        await bcrypt.compare(
-          password,
-          user.password
-        );
-
-      if (!passwordMatches) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            message:
-              "Invalid email or password.",
-          });
-      }
-
-      // =================================
-      // CREATE TOKEN
-      // =================================
-
-      const token =
-        createToken(user);
-
-      // =================================
-      // SEND LOGIN SECURITY EMAIL
-      // =================================
-      //
-      // We intentionally DO NOT await
-      // this email.
-      //
-      // If Gmail/email service fails,
-      // the user's valid login will
-      // still succeed.
-      // =================================
-
-      sendLoginSecurityEmail(
-        user.email,
-        user.name
-      ).catch((emailError) => {
-        console.error(
-          "Login security email failed:",
-          emailError.message
-        );
-      });
-
-      // =================================
-      // LOGIN SUCCESS
-      // =================================
-
-      return res.json({
+      return res.status(200).json({
         success: true,
-
-        message:
-          "Login successful.",
-
-        token,
-
-        user:
-          getSafeUser(user),
+        user: getSafeUser(user),
       });
     } catch (error) {
       console.error(
-        "Login error:",
+        "Get current user error:",
         error
       );
 
-      return res
-        .status(500)
-        .json({
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not load user.",
+      });
+    }
+  }
+);
+
+// =====================================================
+// GET CURRENT USER PROFILE
+// GET /api/auth/profile
+// PRIVATE
+// =====================================================
+
+router.get(
+  "/profile",
+  protect,
+  async (req, res) => {
+    try {
+      const user = await User.findById(
+        req.user._id
+      ).select("-password");
+
+      if (!user) {
+        return res.status(404).json({
           success: false,
           message:
-            "Server error during login.",
+            "User account not found.",
         });
+      }
+
+      return res.status(200).json({
+        success: true,
+        user: getSafeUser(user),
+      });
+    } catch (error) {
+      console.error(
+        "Get profile error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not load your profile.",
+      });
     }
   }
 );
@@ -381,108 +347,65 @@ router.post(
     let cleanEmail = "";
 
     try {
-      const {
-        email,
-      } = req.body;
-
-      // =================================
-      // CHECK EMAIL
-      // =================================
+      const { email } = req.body;
 
       if (!email) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter your email address.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please enter your email address.",
+        });
       }
 
-      cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
+      cleanEmail = String(email)
+        .trim()
+        .toLowerCase();
 
       const emailPattern =
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      if (
-        !emailPattern.test(
-          cleanEmail
-        )
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter a valid email address.",
-          });
+      if (!emailPattern.test(cleanEmail)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please enter a valid email address.",
+        });
       }
 
-      // =================================
-      // CHECK USER EXISTS
-      // =================================
-
-      const user =
-        await User.findOne({
-          email: cleanEmail,
-        });
+      const user = await User.findOne({
+        email: cleanEmail,
+      });
 
       if (!user) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "No account was found with this email address.",
-          });
+        return res.status(404).json({
+          success: false,
+          message:
+            "No account was found with this email address.",
+        });
       }
 
-      // =================================
-      // DELETE OLD RESET REQUESTS
-      // =================================
-
+      // Delete old reset requests
       await PasswordReset.deleteMany({
         email: cleanEmail,
       });
 
-      // =================================
-      // GENERATE 6-DIGIT CODE
-      // =================================
+      // Generate six-digit reset code
+      const resetCode = crypto
+        .randomInt(100000, 1000000)
+        .toString();
 
-      const resetCode =
-        crypto.randomInt(
-          100000,
-          1000000
-        ).toString();
+      // Hash reset code
+      const hashedCode = await bcrypt.hash(
+        resetCode,
+        10
+      );
 
-      // =================================
-      // HASH RESET CODE
-      // =================================
+      // Code expires after 10 minutes
+      const expiresAt = new Date(
+        Date.now() + 10 * 60 * 1000
+      );
 
-      const hashedCode =
-        await bcrypt.hash(
-          resetCode,
-          10
-        );
-
-      // =================================
-      // EXPIRY
-      // CODE EXPIRES AFTER 10 MINUTES
-      // =================================
-
-      const expiresAt =
-        new Date(
-          Date.now() +
-            10 * 60 * 1000
-        );
-
-      // =================================
-      // SAVE RESET REQUEST
-      // =================================
-
+      // Save reset request
       await PasswordReset.create({
         email: cleanEmail,
         code: hashedCode,
@@ -491,19 +414,13 @@ router.post(
         verified: false,
       });
 
-      // =================================
-      // SEND RESET CODE BY EMAIL
-      // =================================
-
+      // Send reset code
       try {
         await sendPasswordResetEmail(
           cleanEmail,
           resetCode
         );
       } catch (emailError) {
-        // Remove unusable reset request
-        // if email sending fails.
-
         await PasswordReset.deleteMany({
           email: cleanEmail,
         });
@@ -513,52 +430,31 @@ router.post(
           emailError.message
         );
 
-        return res
-          .status(500)
-          .json({
-            success: false,
-            message:
-              "We could not send the password reset email. Please try again.",
-          });
+        return res.status(500).json({
+          success: false,
+          message:
+            "We could not send the password reset email. Please try again.",
+        });
       }
 
-      // =================================
-      // SUCCESS
-      // =================================
-      //
-      // IMPORTANT:
-      // The actual reset code is NOT
-      // returned to the frontend.
-      // =================================
-
-      return res
-        .status(200)
-        .json({
-          success: true,
-
-          message:
-            "A 6-digit password reset code has been sent to your email.",
-
-          expiresInMinutes: 10,
-        });
+      return res.status(200).json({
+        success: true,
+        message:
+          "A 6-digit password reset code has been sent to your email.",
+        expiresInMinutes: 10,
+      });
     } catch (error) {
       console.error(
         "Forgot password error:",
         error
       );
 
-      // =================================
-      // CLEANUP
-      // =================================
-
       if (cleanEmail) {
         try {
           await PasswordReset.deleteMany({
             email: cleanEmail,
           });
-        } catch (
-          cleanupError
-        ) {
+        } catch (cleanupError) {
           console.error(
             "Password reset cleanup error:",
             cleanupError.message
@@ -566,19 +462,16 @@ router.post(
         }
       }
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not create password reset request.",
-        });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not create password reset request.",
+      });
     }
   }
 );
-
 // =====================================================
-// VERIFY RESET CODE
+// VERIFY PASSWORD RESET CODE
 // POST /api/auth/verify-reset-code
 // PUBLIC
 // =====================================================
@@ -592,54 +485,21 @@ router.post(
         code,
       } = req.body;
 
-      // =================================
-      // CHECK REQUIRED FIELDS
-      // =================================
-
-      if (
-        !email ||
-        !code
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please enter your email and reset code.",
-          });
+      if (!email || !code) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email and verification code are required.",
+        });
       }
 
-      const cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
+      const cleanEmail = String(email)
+        .trim()
+        .toLowerCase();
 
-      const cleanCode =
-        String(code)
-          .trim();
+      const cleanCode = String(code).trim();
 
-      // =================================
-      // VALIDATE CODE FORMAT
-      // =================================
-
-      if (
-        !/^[0-9]{6}$/.test(
-          cleanCode
-        )
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Reset code must contain exactly 6 digits.",
-          });
-      }
-
-      // =================================
-      // FIND RESET REQUEST
-      // =================================
-
+      // Find latest reset request
       const resetRequest =
         await PasswordReset.findOne({
           email: cleanEmail,
@@ -648,64 +508,45 @@ router.post(
         });
 
       if (!resetRequest) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "No password reset request was found. Please request a new code.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "No password reset request was found. Please request a new code.",
+        });
       }
 
-      // =================================
-      // CHECK EXPIRATION
-      // =================================
-
+      // Check expiry
       if (
         new Date() >
-        resetRequest.expiresAt
+        new Date(resetRequest.expiresAt)
       ) {
-        await PasswordReset.deleteOne({
-          _id:
-            resetRequest._id,
+        await PasswordReset.deleteMany({
+          email: cleanEmail,
         });
 
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Your reset code has expired. Please request a new code.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "The verification code has expired. Please request a new code.",
+        });
       }
 
-      // =================================
-      // CHECK ATTEMPTS
-      // MAXIMUM 5 FAILED ATTEMPTS
-      // =================================
-
+      // Limit incorrect attempts
       if (
-        resetRequest.attempts >=
-        5
+        Number(resetRequest.attempts || 0) >= 5
       ) {
-        await PasswordReset.deleteOne({
-          _id:
-            resetRequest._id,
+        await PasswordReset.deleteMany({
+          email: cleanEmail,
         });
 
-        return res
-          .status(429)
-          .json({
-            success: false,
-            message:
-              "Too many incorrect attempts. Please request a new reset code.",
-          });
+        return res.status(429).json({
+          success: false,
+          message:
+            "Too many incorrect attempts. Please request a new code.",
+        });
       }
 
-      // =================================
-      // COMPARE CODE
-      // =================================
-
+      // Compare entered code with hashed code
       const codeMatches =
         await bcrypt.compare(
           cleanCode,
@@ -713,69 +554,42 @@ router.post(
         );
 
       if (!codeMatches) {
-        resetRequest.attempts +=
-          1;
+        resetRequest.attempts =
+          Number(
+            resetRequest.attempts || 0
+          ) + 1;
 
         await resetRequest.save();
 
-        const attemptsLeft =
-          Math.max(
-            0,
-            5 -
-              resetRequest.attempts
-          );
-
-        return res
-          .status(400)
-          .json({
-            success: false,
-
-            message:
-              attemptsLeft > 0
-                ? `Incorrect reset code. ${attemptsLeft} attempt${
-                    attemptsLeft ===
-                    1
-                      ? ""
-                      : "s"
-                  } remaining.`
-                : "Too many incorrect attempts. Please request a new reset code.",
-
-            attemptsLeft,
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Incorrect verification code.",
+        });
       }
 
-      // =================================
-      // MARK CODE VERIFIED
-      // =================================
-
-      resetRequest.verified =
-        true;
-
-      resetRequest.attempts =
-        0;
+      // Mark request as verified
+      resetRequest.verified = true;
+      resetRequest.attempts = 0;
 
       await resetRequest.save();
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "Reset code verified successfully.",
-        });
+      return res.status(200).json({
+        success: true,
+        message:
+          "Verification code confirmed.",
+      });
     } catch (error) {
       console.error(
         "Verify reset code error:",
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not verify reset code.",
-        });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not verify the reset code.",
+      });
     }
   }
 );
@@ -792,251 +606,149 @@ router.post(
     try {
       const {
         email,
+        code,
+        password,
         newPassword,
-        confirmPassword,
       } = req.body;
 
-      // =================================
-      // CHECK REQUIRED FIELDS
-      // =================================
+      const finalPassword =
+        newPassword || password;
 
       if (
         !email ||
-        !newPassword ||
-        !confirmPassword
+        !code ||
+        !finalPassword
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please fill in all password reset fields.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email, verification code and new password are required.",
+        });
       }
 
-      const cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
+      const cleanEmail = String(email)
+        .trim()
+        .toLowerCase();
 
-      // =================================
-      // PASSWORD LENGTH
-      // =================================
+      const cleanCode = String(code).trim();
 
       if (
-        String(
-          newPassword
-        ).length < 6
+        String(finalPassword).length < 6
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password must be at least 6 characters.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Password must be at least 6 characters.",
+        });
       }
 
-      // =================================
-      // PASSWORD CONFIRMATION
-      // =================================
-
-      if (
-        newPassword !==
-        confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password and confirm password do not match.",
-          });
-      }
-
-      // =================================
-      // FIND VERIFIED RESET REQUEST
-      // =================================
-
+      // Find reset request
       const resetRequest =
         await PasswordReset.findOne({
           email: cleanEmail,
-          verified: true,
         }).sort({
           createdAt: -1,
         });
 
       if (!resetRequest) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please verify your reset code before changing your password.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "No valid password reset request was found.",
+        });
       }
 
-      // =================================
-      // CHECK EXPIRATION AGAIN
-      // =================================
-
+      // Check expiration
       if (
         new Date() >
-        resetRequest.expiresAt
+        new Date(resetRequest.expiresAt)
       ) {
-        await PasswordReset.deleteOne({
-          _id:
-            resetRequest._id,
-        });
-
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Your password reset session has expired. Please request a new code.",
-          });
-      }
-
-      // =================================
-      // FIND USER
-      // =================================
-
-      const user =
-        await User.findOne({
-          email: cleanEmail,
-        });
-
-      if (!user) {
         await PasswordReset.deleteMany({
           email: cleanEmail,
         });
 
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "User account not found.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "The verification code has expired. Please request a new code.",
+        });
       }
 
-      // =================================
-      // PREVENT SAME PASSWORD
-      // =================================
+      // Verify code again for security
+      const codeMatches =
+        await bcrypt.compare(
+          cleanCode,
+          resetRequest.code
+        );
 
+      if (!codeMatches) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid verification code.",
+        });
+      }
+
+      // Find account
+      const user = await User.findOne({
+        email: cleanEmail,
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
+      }
+
+      // Prevent using same password
       const samePassword =
         await bcrypt.compare(
-          newPassword,
+          finalPassword,
           user.password
         );
 
       if (samePassword) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password must be different from your current password.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Your new password must be different from your current password.",
+        });
       }
 
-      // =================================
-      // HASH NEW PASSWORD
-      // =================================
-
+      // Hash new password
       const hashedPassword =
         await bcrypt.hash(
-          newPassword,
+          finalPassword,
           10
         );
 
-      // =================================
-      // UPDATE USER
-      // =================================
-
-      user.password =
-        hashedPassword;
+      user.password = hashedPassword;
 
       await user.save();
 
-      // =================================
-      // DELETE RESET REQUEST
-      // =================================
-
+      // Delete reset request after success
       await PasswordReset.deleteMany({
         email: cleanEmail,
       });
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "Password reset successfully. You can now login with your new password.",
-        });
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password reset successfully. You can now log in with your new password.",
+      });
     } catch (error) {
       console.error(
         "Reset password error:",
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not reset your password.",
-        });
-    }
-  }
-);
-
-// =====================================================
-// GET CURRENT USER PROFILE
-// GET /api/auth/profile
-// PRIVATE
-// =====================================================
-
-router.get(
-  "/profile",
-  protect,
-  async (req, res) => {
-    try {
-      const user =
-        await User.findById(
-          req.user._id
-        ).select("-password");
-
-      if (!user) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "User account not found.",
-          });
-      }
-
-      return res.json({
-        success: true,
-
-        user:
-          getSafeUser(user),
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not reset your password.",
       });
-    } catch (error) {
-      console.error(
-        "Get profile error:",
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not load your profile.",
-        });
     }
   }
 );
@@ -1052,6 +764,18 @@ router.put(
   protect,
   async (req, res) => {
     try {
+      const user = await User.findById(
+        req.user._id
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
+      }
+
       const {
         name,
         phone,
@@ -1059,165 +783,62 @@ router.put(
         city,
         state,
         pincode,
+        profileImage,
       } = req.body;
 
-      const user =
-        await User.findById(
-          req.user._id
-        );
-
-      if (!user) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "User account not found.",
-          });
-      }
-
-      // =================================
-      // NAME
-      // =================================
-
-      if (
-        name !== undefined
-      ) {
+      if (name !== undefined) {
         const cleanName =
           String(name).trim();
 
-        if (
-          cleanName.length < 2
-        ) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message:
-                "Please enter a valid name.",
-            });
+        if (cleanName.length < 2) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Please enter a valid name.",
+          });
         }
 
-        user.name =
-          cleanName;
+        user.name = cleanName;
       }
 
-      // =================================
-      // PHONE
-      // =================================
-
-      if (
-        phone !== undefined
-      ) {
-        const cleanPhone =
-          String(phone)
-            .replace(
-              /\s+/g,
-              ""
-            )
-            .trim();
-
-        if (
-          cleanPhone &&
-          !/^[0-9]{10}$/.test(
-            cleanPhone
-          )
-        ) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message:
-                "Phone number must contain exactly 10 digits.",
-            });
-        }
-
+      if (phone !== undefined) {
         user.phone =
-          cleanPhone;
+          String(phone).trim();
       }
 
-      // =================================
-      // ADDRESS
-      // =================================
-
-      if (
-        address !== undefined
-      ) {
+      if (address !== undefined) {
         user.address =
-          String(
-            address
-          ).trim();
+          String(address).trim();
       }
 
-      // =================================
-      // CITY
-      // =================================
-
-      if (
-        city !== undefined
-      ) {
+      if (city !== undefined) {
         user.city =
           String(city).trim();
       }
 
-      // =================================
-      // STATE
-      // =================================
-
-      if (
-        state !== undefined
-      ) {
+      if (state !== undefined) {
         user.state =
           String(state).trim();
       }
 
-      // =================================
-      // PIN CODE
-      // =================================
-
-      if (
-        pincode !== undefined
-      ) {
-        const cleanPincode =
-          String(pincode)
-            .replace(
-              /\s+/g,
-              ""
-            )
-            .trim();
-
-        if (
-          cleanPincode &&
-          !/^[0-9]{6}$/.test(
-            cleanPincode
-          )
-        ) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message:
-                "PIN code must contain exactly 6 digits.",
-            });
-        }
-
+      if (pincode !== undefined) {
         user.pincode =
-          cleanPincode;
+          String(pincode).trim();
       }
 
-      // Email and role are deliberately
-      // not updated from this route.
+      if (profileImage !== undefined) {
+        user.profileImage =
+          String(profileImage).trim();
+      }
 
-      await user.save();
+      const updatedUser =
+        await user.save();
 
-      return res.json({
+      return res.status(200).json({
         success: true,
-
         message:
           "Profile updated successfully.",
-
-        user:
-          getSafeUser(user),
+        user: getSafeUser(updatedUser),
       });
     } catch (error) {
       console.error(
@@ -1225,13 +846,11 @@ router.put(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not update your profile.",
-        });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not update your profile.",
+      });
     }
   }
 );
@@ -1250,102 +869,54 @@ router.put(
       const {
         currentPassword,
         newPassword,
-        confirmPassword,
       } = req.body;
-
-      // =================================
-      // CHECK FIELDS
-      // =================================
 
       if (
         !currentPassword ||
-        !newPassword ||
-        !confirmPassword
+        !newPassword
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please fill in all password fields.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password and new password are required.",
+        });
       }
-
-      // =================================
-      // PASSWORD LENGTH
-      // =================================
 
       if (
-        newPassword.length < 6
+        String(newPassword).length < 6
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password must be at least 6 characters.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "New password must be at least 6 characters.",
+        });
       }
 
-      // =================================
-      // PASSWORD CONFIRMATION
-      // =================================
-
-      if (
-        newPassword !==
-        confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password and confirm password do not match.",
-          });
-      }
-
-      // =================================
-      // GET USER
-      // =================================
-
-      const user =
-        await User.findById(
-          req.user._id
-        );
+      const user = await User.findById(
+        req.user._id
+      );
 
       if (!user) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "User account not found.",
-          });
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
       }
 
-      // =================================
-      // VERIFY CURRENT PASSWORD
-      // =================================
-
-      const passwordMatches =
+      const currentPasswordMatches =
         await bcrypt.compare(
           currentPassword,
           user.password
         );
 
-      if (!passwordMatches) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            message:
-              "Current password is incorrect.",
-          });
+      if (!currentPasswordMatches) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "Current password is incorrect.",
+        });
       }
-
-      // =================================
-      // PREVENT SAME PASSWORD
-      // =================================
 
       const samePassword =
         await bcrypt.compare(
@@ -1354,33 +925,22 @@ router.put(
         );
 
       if (samePassword) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "New password must be different from your current password.",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "New password must be different from your current password.",
+        });
       }
 
-      // =================================
-      // HASH NEW PASSWORD
-      // =================================
-
-      const hashedPassword =
-        await bcrypt.hash(
-          newPassword,
-          10
-        );
-
-      user.password =
-        hashedPassword;
+      user.password = await bcrypt.hash(
+        newPassword,
+        10
+      );
 
       await user.save();
 
-      return res.json({
+      return res.status(200).json({
         success: true,
-
         message:
           "Password changed successfully.",
       });
@@ -1390,21 +950,18 @@ router.put(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not change your password.",
-        });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not change your password.",
+      });
     }
   }
 );
-
 // =====================================================
-// GET ALL USERS
+// ADMIN - GET ALL USERS
 // GET /api/auth/admin/users
-// ADMIN ONLY
+// PRIVATE + ADMIN
 // =====================================================
 
 router.get(
@@ -1413,43 +970,202 @@ router.get(
   adminOnly,
   async (req, res) => {
     try {
-      // Password is intentionally
-      // excluded.
+      const users = await User.find({})
+        .select("-password")
+        .sort({
+          createdAt: -1,
+        });
 
-      const users =
-        await User.find()
-          .select("-password")
-          .sort({
-            createdAt: -1,
-          });
-
-      return res.json({
+      return res.status(200).json({
         success: true,
-
-        totalUsers:
-          users.length,
-
-        users,
+        count: users.length,
+        users: users.map((user) =>
+          getSafeUser(user)
+        ),
       });
     } catch (error) {
       console.error(
-        "Get users error:",
+        "Admin get users error:",
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            "Could not load users.",
-        });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not load users.",
+      });
     }
   }
 );
 
 // =====================================================
-// EXPORT ROUTER
+// ADMIN - GET SINGLE USER
+// GET /api/auth/admin/users/:id
+// PRIVATE + ADMIN
+// =====================================================
+
+router.get(
+  "/admin/users/:id",
+  protect,
+  adminOnly,
+  async (req, res) => {
+    try {
+      const user = await User.findById(
+        req.params.id
+      ).select("-password");
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        user: getSafeUser(user),
+      });
+    } catch (error) {
+      console.error(
+        "Admin get user error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not load user.",
+      });
+    }
+  }
+);
+
+// =====================================================
+// ADMIN - UPDATE USER ROLE
+// PUT /api/auth/admin/users/:id/role
+// PRIVATE + ADMIN
+// =====================================================
+
+router.put(
+  "/admin/users/:id/role",
+  protect,
+  adminOnly,
+  async (req, res) => {
+    try {
+      const { role } = req.body;
+
+      if (
+        !role ||
+        !["user", "admin"].includes(role)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Role must be either user or admin.",
+        });
+      }
+
+      const user = await User.findById(
+        req.params.id
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
+      }
+
+      user.role = role;
+
+      const updatedUser =
+        await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "User role updated successfully.",
+        user: getSafeUser(updatedUser),
+      });
+    } catch (error) {
+      console.error(
+        "Admin update role error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not update user role.",
+      });
+    }
+  }
+);
+
+// =====================================================
+// ADMIN - DELETE USER
+// DELETE /api/auth/admin/users/:id
+// PRIVATE + ADMIN
+// =====================================================
+
+router.delete(
+  "/admin/users/:id",
+  protect,
+  adminOnly,
+  async (req, res) => {
+    try {
+      const user = await User.findById(
+        req.params.id
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User account not found.",
+        });
+      }
+
+      // Prevent admin from deleting their own account
+      if (
+        String(user._id) ===
+        String(req.user._id)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "You cannot delete your own admin account.",
+        });
+      }
+
+      await User.findByIdAndDelete(
+        req.params.id
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "User deleted successfully.",
+      });
+    } catch (error) {
+      console.error(
+        "Admin delete user error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not delete user.",
+      });
+    }
+  }
+);
+
+// =====================================================
+// AUTH ROUTER READY
 // =====================================================
 
 module.exports = router;

@@ -557,7 +557,7 @@ function App() {
 
           const response =
             await fetch(
-              `${API_URL}/api/auth/me`,
+              `${API_URL}/api/auth/profile`,
               {
                 headers: {
                   Authorization:

@@ -1,50 +1,104 @@
 import { useEffect, useState } from "react";
 import API_URL from "./api";
 
-function AdminOrders({ onClose }) {
+function AdminOrders({
+  onClose,
+  user,
+  token,
+  apiUrl,
+}) {
+  // =================================================
+  // STATE
+  // =================================================
+
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  // =================================================
+  // FINAL API URL
+  // =================================================
 
-  const [error, setError] =
-    useState("");
+  const baseApiUrl =
+    apiUrl || API_URL;
 
-  const [updatingId, setUpdatingId] =
-    useState(null);
+  // =================================================
+  // AUTH TOKEN
+  // =================================================
 
-  // =========================
+  const authToken =
+    token ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    "";
+
+  // =================================================
   // LOAD ALL ORDERS
-  // =========================
+  // =================================================
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const token =
-        localStorage.getItem(
-          "shopmindToken"
-        );
+      // =============================================
+      // CHECK ADMIN LOGIN
+      // =============================================
 
-      if (!token) {
+      if (!authToken) {
         throw new Error(
-          "Admin login required."
+          "Admin login required. Please log in again."
         );
       }
 
+      // =============================================
+      // CHECK ADMIN ROLE
+      // =============================================
+
+      if (
+        user &&
+        user.role !== "admin"
+      ) {
+        throw new Error(
+          "Admin access required."
+        );
+      }
+
+      // =============================================
+      // REQUEST ALL ORDERS
+      // =============================================
+
       const response = await fetch(
-        `${API_URL}/api/orders/admin/all`,
+        `${baseApiUrl}/api/orders/admin/all`,
         {
+          method: "GET",
+
           headers: {
             Authorization:
-              `Bearer ${token}`,
+              `Bearer ${authToken}`,
           },
         }
       );
 
-      const data =
-        await response.json();
+      // =============================================
+      // READ RESPONSE
+      // =============================================
+
+      let data;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        throw new Error(
+          "Server returned an invalid response."
+        );
+      }
+
+      // =============================================
+      // HANDLE ERROR
+      // =============================================
 
       if (
         !response.ok ||
@@ -52,15 +106,23 @@ function AdminOrders({ onClose }) {
       ) {
         throw new Error(
           data.message ||
+            data.error ||
             "Could not load orders."
         );
       }
+
+      // =============================================
+      // SAVE ORDERS
+      // =============================================
 
       setOrders(
         data.orders || []
       );
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Admin orders error:",
+        error
+      );
 
       setError(
         error.message ||
@@ -71,13 +133,17 @@ function AdminOrders({ onClose }) {
     }
   };
 
+  // =================================================
+  // LOAD ORDERS WHEN MODAL OPENS
+  // =================================================
+
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [authToken, baseApiUrl]);
 
-  // =========================
-  // UPDATE STATUS
-  // =========================
+  // =================================================
+  // UPDATE ORDER STATUS
+  // =================================================
 
   const updateOrderStatus =
     async (
@@ -91,20 +157,36 @@ function AdminOrders({ onClose }) {
 
         setError("");
 
-        const token =
-          localStorage.getItem(
-            "shopmindToken"
-          );
+        // ===========================================
+        // CHECK TOKEN
+        // ===========================================
 
-        if (!token) {
+        if (!authToken) {
           throw new Error(
-            "Admin login required."
+            "Admin login required. Please log in again."
           );
         }
 
+        // ===========================================
+        // CHECK ADMIN
+        // ===========================================
+
+        if (
+          user &&
+          user.role !== "admin"
+        ) {
+          throw new Error(
+            "Admin access required."
+          );
+        }
+
+        // ===========================================
+        // UPDATE STATUS REQUEST
+        // ===========================================
+
         const response =
           await fetch(
-            `${API_URL}/api/orders/${orderId}/status`,
+            `${baseApiUrl}/api/orders/${orderId}/status`,
             {
               method: "PUT",
 
@@ -113,7 +195,7 @@ function AdminOrders({ onClose }) {
                   "application/json",
 
                 Authorization:
-                  `Bearer ${token}`,
+                  `Bearer ${authToken}`,
               },
 
               body:
@@ -123,8 +205,24 @@ function AdminOrders({ onClose }) {
             }
           );
 
-        const data =
-          await response.json();
+        // ===========================================
+        // READ RESPONSE
+        // ===========================================
+
+        let data;
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          throw new Error(
+            "Server returned an invalid response."
+          );
+        }
+
+        // ===========================================
+        // HANDLE ERROR
+        // ===========================================
 
         if (
           !response.ok ||
@@ -132,27 +230,28 @@ function AdminOrders({ onClose }) {
         ) {
           throw new Error(
             data.message ||
+              data.error ||
               "Could not update order."
           );
         }
 
+        // ===========================================
+        // UPDATE LOCAL ORDER LIST
+        // ===========================================
+
         setOrders(
-          (
-            currentOrders
-          ) =>
+          (currentOrders) =>
             currentOrders.map(
               (order) =>
                 order._id ===
                 orderId
                   ? {
                       ...order,
-
                       ...data.order,
 
-                      // Keep populated user
                       user:
                         data.order
-                          .user ||
+                          ?.user ||
                         order.user,
                     }
                   : order
@@ -160,6 +259,7 @@ function AdminOrders({ onClose }) {
         );
       } catch (error) {
         console.error(
+          "Update order error:",
           error
         );
 
@@ -174,9 +274,9 @@ function AdminOrders({ onClose }) {
       }
     };
 
-  // =========================
+  // =================================================
   // FORMAT PRICE
-  // =========================
+  // =================================================
 
   const formatPrice = (
     price
@@ -187,9 +287,9 @@ function AdminOrders({ onClose }) {
       "en-IN"
     );
 
-  // =========================
+  // =================================================
   // FORMAT DATE
-  // =========================
+  // =================================================
 
   const formatDate = (
     date
@@ -211,6 +311,9 @@ function AdminOrders({ onClose }) {
       }
     );
   };
+    // =================================================
+  // RETURN
+  // =================================================
 
   return (
     <div
@@ -219,11 +322,13 @@ function AdminOrders({ onClose }) {
     >
       <div
         className="orders-modal admin-orders-modal"
-        onClick={(e) =>
-          e.stopPropagation()
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {/* HEADER */}
+        {/* ===========================================
+            HEADER
+        =========================================== */}
 
         <div className="orders-header">
           <div>
@@ -232,9 +337,8 @@ function AdminOrders({ onClose }) {
             </h2>
 
             <p>
-              View customer orders
-              and update delivery
-              status.
+              View customer orders and
+              update delivery status.
             </p>
           </div>
 
@@ -242,12 +346,33 @@ function AdminOrders({ onClose }) {
             type="button"
             className="orders-close-btn"
             onClick={onClose}
+            aria-label="Close admin orders"
           >
             ✕
           </button>
         </div>
 
-        {/* ERROR */}
+        {/* ===========================================
+            ADMIN INFORMATION
+        =========================================== */}
+
+        {user?.role ===
+          "admin" && (
+          <div className="admin-orders-user">
+            <span>
+              👤 Logged in as
+            </span>
+
+            <strong>
+              {user.name ||
+                "Administrator"}
+            </strong>
+          </div>
+        )}
+
+        {/* ===========================================
+            ERROR MESSAGE
+        =========================================== */}
 
         {error && (
           <div className="orders-error">
@@ -255,7 +380,9 @@ function AdminOrders({ onClose }) {
           </div>
         )}
 
-        {/* LOADING */}
+        {/* ===========================================
+            LOADING
+        =========================================== */}
 
         {loading ? (
           <div className="orders-loading">
@@ -266,9 +393,16 @@ function AdminOrders({ onClose }) {
             <h3>
               Loading orders...
             </h3>
+
+            <p>
+              Fetching customer orders.
+            </p>
           </div>
-        ) : orders.length ===
-          0 ? (
+        ) : orders.length === 0 ? (
+          /* =========================================
+             EMPTY ORDERS
+          ========================================= */
+
           <div className="orders-empty">
             <div className="orders-empty-icon">
               📦
@@ -284,6 +418,10 @@ function AdminOrders({ onClose }) {
             </p>
           </div>
         ) : (
+          /* =========================================
+             ORDER LIST
+          ========================================= */
+
           <div className="orders-list">
             {orders.map(
               (order) => (
@@ -291,7 +429,9 @@ function AdminOrders({ onClose }) {
                   className="order-card"
                   key={order._id}
                 >
-                  {/* TOP */}
+                  {/* ===============================
+                      ORDER TOP
+                  =============================== */}
 
                   <div className="order-card-top">
                     <div className="order-meta">
@@ -301,10 +441,7 @@ function AdminOrders({ onClose }) {
                         </span>
 
                         <strong>
-                          #
-                          {
-                            order._id
-                          }
+                          #{order._id}
                         </strong>
                       </div>
 
@@ -325,16 +462,26 @@ function AdminOrders({ onClose }) {
                       className={`order-status status-${(
                         order.status ||
                         "Placed"
-                      ).toLowerCase()}`}
+                      )
+                        .toLowerCase()
+                        .replace(
+                          /\s+/g,
+                          "-"
+                        )}`}
                     >
-                      {
-                        order.status
-                      }
+                      {order.status ||
+                        "Placed"}
                     </span>
                   </div>
 
+                  {/* ===============================
+                      ORDER CONTENT
+                  =============================== */}
+
                   <div className="order-card-content">
-                    {/* LEFT */}
+                    {/* =============================
+                        LEFT SIDE
+                    ============================= */}
 
                     <div className="order-items-section">
                       <h3>
@@ -343,15 +490,13 @@ function AdminOrders({ onClose }) {
 
                       <div className="admin-customer">
                         <strong>
-                          {order
-                            .user
+                          {order.user
                             ?.name ||
                             "Unknown User"}
                         </strong>
 
                         <span>
-                          {order
-                            .user
+                          {order.user
                             ?.email ||
                             "No email"}
                         </span>
@@ -376,7 +521,7 @@ function AdminOrders({ onClose }) {
                               className="order-product"
                               key={
                                 item._id ||
-                                index
+                                `${order._id}-${index}`
                               }
                             >
                               <div className="order-product-icon">
@@ -386,16 +531,14 @@ function AdminOrders({ onClose }) {
 
                               <div className="order-product-info">
                                 <strong>
-                                  {
-                                    item.name
-                                  }
+                                  {item.name ||
+                                    "Product"}
                                 </strong>
 
                                 <span>
                                   Qty:{" "}
-                                  {
-                                    item.quantity
-                                  }
+                                  {item.quantity ||
+                                    1}
                                 </span>
                               </div>
 
@@ -403,10 +546,12 @@ function AdminOrders({ onClose }) {
                                 ₹
                                 {formatPrice(
                                   Number(
-                                    item.price
+                                    item.price ||
+                                      0
                                   ) *
                                     Number(
-                                      item.quantity
+                                      item.quantity ||
+                                        1
                                     )
                                 )}
                               </strong>
@@ -428,60 +573,76 @@ function AdminOrders({ onClose }) {
                         </strong>
                       </div>
                     </div>
-
-                    {/* RIGHT */}
+                                        {/* =============================
+                        RIGHT SIDE
+                    ============================= */}
 
                     <div className="order-details-section">
+
+                      {/* ===========================
+                          DELIVERY DETAILS
+                      =========================== */}
+
                       <div className="order-detail-box">
                         <h3>
                           🚚 Delivery
                         </h3>
 
                         <strong>
-                          {
-                            order
-                              .shippingAddress
-                              ?.fullName
-                          }
+                          {order
+                            .shippingAddress
+                            ?.fullName ||
+                            order.user
+                              ?.name ||
+                            "Customer"}
                         </strong>
 
                         <p>
-                          {
-                            order
-                              .shippingAddress
-                              ?.address
-                          }
+                          {order
+                            .shippingAddress
+                            ?.address ||
+                            "Address not available"}
                         </p>
 
                         <p>
-                          {
-                            order
-                              .shippingAddress
-                              ?.city
-                          }
-                          ,{" "}
-                          {
-                            order
-                              .shippingAddress
-                              ?.state
-                          }{" "}
-                          -{" "}
-                          {
-                            order
-                              .shippingAddress
-                              ?.pincode
-                          }
+                          {order
+                            .shippingAddress
+                            ?.city ||
+                            ""}
+
+                          {order
+                            .shippingAddress
+                            ?.city &&
+                          order
+                            .shippingAddress
+                            ?.state
+                            ? ", "
+                            : ""}
+
+                          {order
+                            .shippingAddress
+                            ?.state ||
+                            ""}
+
+                          {order
+                            .shippingAddress
+                            ?.pincode
+                            ? ` - ${order.shippingAddress.pincode}`
+                            : ""}
                         </p>
 
                         <p>
                           📞{" "}
-                          {
-                            order
-                              .shippingAddress
-                              ?.phone
-                          }
+                          {order
+                            .shippingAddress
+                            ?.phone ||
+                            "Phone not available"}
                         </p>
                       </div>
+
+                      {/* ===========================
+                          PAYMENT DETAILS
+                      =========================== */}
 
                       <div className="order-detail-box">
                         <h3>
@@ -497,7 +658,8 @@ function AdminOrders({ onClose }) {
                             {order.paymentMethod ===
                             "COD"
                               ? "Cash on Delivery"
-                              : order.paymentMethod}
+                              : order.paymentMethod ||
+                                "N/A"}
                           </strong>
                         </div>
 
@@ -507,36 +669,37 @@ function AdminOrders({ onClose }) {
                           </span>
 
                           <strong>
-                            {
-                              order.paymentStatus
-                            }
+                            {order.paymentStatus ||
+                              "Pending"}
                           </strong>
                         </div>
                       </div>
 
-                      {/* STATUS CONTROL */}
+                      {/* ===========================
+                          UPDATE ORDER STATUS
+                      =========================== */}
 
                       <div className="order-detail-box">
                         <h3>
-                          🚚 Update
-                          Status
+                          🚚 Update Status
                         </h3>
 
                         <select
                           className="admin-status-select"
                           value={
-                            order.status
+                            order.status ||
+                            "Placed"
                           }
                           disabled={
                             updatingId ===
                             order._id
                           }
                           onChange={(
-                            e
+                            event
                           ) =>
                             updateOrderStatus(
                               order._id,
-                              e.target
+                              event.target
                                 .value
                             )
                           }
@@ -570,12 +733,14 @@ function AdminOrders({ onClose }) {
                         )}
                       </div>
                     </div>
+
                   </div>
                 </div>
               )
             )}
           </div>
         )}
+
       </div>
     </div>
   );
